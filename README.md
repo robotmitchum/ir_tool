@@ -8,6 +8,8 @@ Generate test tone (sweep and impulse click) to use for deconvolution and record
 
 Supports wav, flac and aif formats for input and output
 
+![Alt Text](irt_screencap_01.png)
+
 ## Installation
 
 This project was developed and tested with Python 3.11.5
