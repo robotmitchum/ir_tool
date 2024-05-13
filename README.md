@@ -1,7 +1,5 @@
 # IR Tool
 
-by Michel 'Mitch' Pecqueur
-
 Impulse Response tool
 
 Batch deconvolve and process (trim / fade end, gain compensate / normalize) impulse responses
