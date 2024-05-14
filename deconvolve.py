@@ -20,9 +20,6 @@ def deconvolve(audio, reference, lambd=1e-3, mode='minmax_sum'):
     :param np.array reference: Reference audio
     :param float lambd: Peak signal-to-noise ratio
     :param str mode: Match length mode between audio and ref, "min", "max" or 'minmax_sum' (to alleviate wrap-around)
-    :param float or None trim_db:
-    :param float or None fade_db:
-    :param int or None min_length: Minimum impulse length
 
     :return: Resulting IR
     :rtype: np.array
