@@ -306,8 +306,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select reference tone", startdir, fltr)
         if path:
             self.ref_tone = os.path.normpath(path)
-            if Path(self.ref_tone).is_relative_to(self.current_dir):
-                self.ref_tone = Path(self.ref_tone).name
+            p = Path(self.ref_tone)
+            if p.is_relative_to(self.current_dir):
+                self.ref_tone = str(p.relative_to(self.current_dir))
             self.ref_tone_path_l.setText(self.ref_tone)
 
     def set_output_path(self):
