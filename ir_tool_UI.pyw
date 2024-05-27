@@ -468,8 +468,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             files = [item for item in items if Path(item).suffix in self.file_types]
             if files:
                 self.ref_tone = os.path.normpath(files[0])
-                if Path(self.ref_tone).is_relative_to(self.current_dir):
-                    self.ref_tone = Path(self.ref_tone).name
+                p = Path(self.ref_tone)
+                if p.is_relative_to(self.current_dir):
+                    self.ref_tone = str(p.relative_to(self.current_dir))
                 self.ref_tone_path_l.setText(self.ref_tone)
         else:
             event.ignore()
