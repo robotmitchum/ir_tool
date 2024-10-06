@@ -31,6 +31,8 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import UI.ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
+__version__ = '1.0.1'
+
 
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def __init__(self):
@@ -38,9 +40,6 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.current_dir = Path(__file__).parent
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile('UI/icon16.png', QtCore.QSize(16, 16))
-        app_icon.addFile('UI/icon24.png', QtCore.QSize(24, 24))
-        app_icon.addFile('UI/icon32.png', QtCore.QSize(32, 32))
         app_icon.addFile('UI/icon48.png', QtCore.QSize(48, 48))
         self.setWindowIcon(app_icon)
 
@@ -94,10 +93,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.fadeout_cb.stateChanged.connect(
             lambda state: self.fadeout_db_dsb.setEnabled(state == 2 and self.trim_cb.isChecked()))
 
-        self.trim_db_dsb.setContextMenuPolicy(3)
-        self.trim_db_dsb.customContextMenuRequested.connect(self.trim_db_dsb_ctx)
-        self.fadeout_db_dsb.setContextMenuPolicy(3)
-        self.fadeout_db_dsb.customContextMenuRequested.connect(self.fadeout_db_dsb_ctx)
+        add_ctx(self.trim_db_dsb, values=[-60, -90, -120])
+        add_ctx(self.fadeout_db_dsb, values=[-48, -60, -90, -120])
 
         # Normalize widgets
         self.normalize_cb.stateChanged.connect(lambda state: self.normalize_cmb.setEnabled(state == 2))
@@ -106,13 +103,12 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.normalize_cmb.currentTextChanged.connect(
             lambda state: self.peak_db_dsb.setEnabled(state == 'peak' and self.normalize_cb.isChecked()))
 
-        self.peak_db_dsb.setContextMenuPolicy(3)
-        self.peak_db_dsb.customContextMenuRequested.connect(self.peak_db_dsb_ctx)
+        add_ctx(self.peak_db_dsb, values=[-0.5, -6, -12, -18])
 
         # Suffix widget
         self.add_suffix_cb.stateChanged.connect(lambda state: self.suffix_le.setEnabled(state == 2))
-        self.suffix_le.setContextMenuPolicy(3)
-        self.suffix_le.customContextMenuRequested.connect(self.suffix_le_ctx)
+
+        add_ctx(self.suffix_le, values=['_result', '_dc', '_trim', '_norm'])
 
         # Process button
         self.process_pb.clicked.connect(self.do_deconvolve)
@@ -352,51 +348,14 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     def output_path_l_ctx(self):
         menu = QtWidgets.QMenu(self)
-        clear_action = menu.addAction('Clear output path')
+        names, paths = ['Clear path'], ['']
+        names.append('Set to home directory')
+        paths.append(get_documents_directory())
+        actions = [menu.addAction(name) for name in names]
         action = menu.exec_(QtGui.QCursor.pos())
-        if action == clear_action:
-            self.output_path = ''
-            self.output_path_l.setText(self.output_path)
-
-    def trim_db_dsb_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = [-60, -90, -120]
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.trim_db_dsb.setValue, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
-
-    def fadeout_db_dsb_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = [-48, -60, -90, -120]
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.fadeout_db_dsb.setValue, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
-
-    def peak_db_dsb_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = [-0.5, -6, -12, -18]
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.peak_db_dsb.setValue, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
-
-    def suffix_le_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = ['_result', '_dc', '_trim', '_norm']
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.suffix_le.setText, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
+        for a, path in zip(actions, paths):
+            if action == a:
+                self.output_path_l.setText(path)
 
     def get_lw_items(self, ui_item):
         return [ui_item.item(i).text() for i in range(ui_item.count())]
@@ -483,9 +442,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def output_path_drop_event(self, event):
         if event.mimeData().hasUrls():
             items = event.mimeData().urls()
-            items = [item.toLocalFile() for item in items]
+            items = [Path(item.toLocalFile()) for item in items]
 
-            dirs = [item for item in items if os.path.isdir(item)]
+            dirs = [item for item in items if item.is_dir()]
             if dirs:
                 self.output_path = os.path.normpath(dirs[0])
                 self.output_path_l.setText(self.output_path)
@@ -515,8 +474,8 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.length_dsb.setMaximum(60)
         self.length_dsb.setValue(4.0)
         self.length_dsb.setDecimals(1)
-        self.length_dsb.setContextMenuPolicy(3)
-        self.length_dsb.customContextMenuRequested.connect(self.length_dsb_ctx)
+
+        add_ctx(self.length_dsb, values=[3.0, 4.0, 6.0, 8.0, 16.0])
 
         self.sr_l = QtWidgets.QLabel('Sample Rate :', self)
         self.sr_l.setSizePolicy(size_policy)
@@ -525,8 +484,8 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.sr_sb.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.sr_sb.setMaximum(192000)
         self.sr_sb.setValue(48000)
-        self.sr_sb.setContextMenuPolicy(3)
-        self.sr_sb.customContextMenuRequested.connect(self.sr_sb_ctx)
+
+        add_ctx(self.sr_sb, values=[44100, 48000, 96000, 192000])
 
         self.bd_l = QtWidgets.QLabel('Bit Depth :', self)
         self.bd_l.setSizePolicy(size_policy)
@@ -557,25 +516,18 @@ class RefToneDialog(QtWidgets.QFileDialog):
         custom_lyt.addWidget(self.bd_cmb)
         custom_lyt.addWidget(self.w_cb)
 
-    def sr_sb_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = [44100, 48000, 96000, 192000]
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.sr_sb.setValue, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
 
-    def length_dsb_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        values = [3.0, 4.0, 6.0, 8.0, 16.0]
-        names = [menu.addAction(str(val)) for val in values]
-        cmds = [partial(self.length_dsb.setValue, val) for val in values]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for name, cmd in zip(names, cmds):
-            if action == name:
-                cmd()
+def get_documents_directory():
+    if sys.platform == 'win32':
+        import winreg
+        # This works even if user profile has been moved to some other drive
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                            r'Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
+            path, _ = winreg.QueryValueEx(key, 'Personal')
+    else:
+        homepath = Path.home()
+        path = homepath / 'Documents'
+    return path
 
 
 def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True):
@@ -604,16 +556,55 @@ def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True
     return new_path
 
 
-if __name__ == "__main__":
-    myappid = 'mitch.ir_tool.100'
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+def add_ctx(widget, values=(), names=None, trigger=None):
+    """
+    Add a simple context menu setting provided values to the given widget
 
+    :param QtWidgets.QWidget widget: The widget to which the context menu will be added
+    :param list values: A list of values to be added as actions in the context menu
+    :param list or None names: A list of strings or values to be added as action names
+    must match values length
+    :param QWidget or None trigger: Optional widget triggering the context menu
+    typically a QPushButton or QToolButton
+    """
+    if not names:
+        names = values
+
+    def show_context_menu(event):
+        menu = QtWidgets.QMenu(widget)
+        for name, value in zip(names, values):
+            if value == '---':
+                menu.addSeparator()
+            else:
+                action = QtWidgets.QAction(f"{name}", widget)
+                if hasattr(widget, 'setValue'):
+                    action.triggered.connect(lambda checked, v=value: widget.setValue(v))
+                elif hasattr(widget, 'setFullPath'):
+                    action.triggered.connect(lambda checked, v=value: widget.setFullPath(v))
+                elif hasattr(widget, 'setText'):
+                    action.triggered.connect(lambda checked, v=value: widget.setText(v))
+                menu.addAction(action)
+        pos = widget.mapToGlobal(widget.contentsRect().bottomLeft())
+        menu.setMinimumWidth(widget.width())
+        menu.exec_(pos)
+
+    widget.setContextMenuPolicy(3)
+    if trigger is None:
+        widget.customContextMenuRequested.connect(show_context_menu)
+    else:
+        trigger.clicked.connect(show_context_menu)
+
+
+if __name__ == "__main__":
+    myappid = f'mitch.ir_tool.{__version__}'
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+
     font = app.font()
     font.setPointSize(12)
     app.setFont(font)
-    window = IrToolUi()
 
+    window = IrToolUi()
     window.show()
     sys.exit(app.exec_())
