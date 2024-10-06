@@ -16,7 +16,6 @@
 """
 
 import ctypes
-import glob
 import os
 import shutil
 import sys
@@ -168,8 +167,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
                 # Soundfile only recognizes aiff and not aif when writing
                 sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-                sf.write(sf_path, data, sr, subtype=subtypes[bit_depth])
-                if sf_path != filepath:
+                sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
+                if str(sf_path) != filepath:
                     os.rename(sf_path, filepath)
 
                 self.progress_pb.setValue(1)
@@ -209,8 +208,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
                 # Soundfile only recognizes 'aiff' and not 'aif' when writing
                 sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-                sf.write(sf_path, data, sr, subtype=subtypes[bit_depth])
-                if sf_path != filepath:
+                sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
+                if str(sf_path) != filepath:
                     os.rename(sf_path, filepath)
 
                 self.progress_pb.setValue(1)
@@ -285,16 +284,21 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
             # Soundfile only recognizes aiff and not aif when writing
             sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-            sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth])
-            if sf_path != filepath:
-                os.rename(sf_path, filepath)
+            try:
+                sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth])
+                if sf_path != filepath:
+                    os.rename(sf_path, filepath)
+                done += 1
+            except Exception as e:
+                print(f'{filepath} could not be written')
+                self.progress_pb.setFormat(f'{filepath} could not be written')
+                pass
 
-            done += 1
             self.progress_pb.setValue(i + 1)
 
         self.progress_pb.setFormat(f'{done} of {count} file(s) processed.')
         if done < count:
-            print('Some file(s) could not be processed. Please check sampling rate(s).')
+            self.progress_pb.setFormat('Some file(s) could not be processed. Please check settings.')
         self.play_notification()
 
         return True
@@ -441,15 +445,16 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def lw_drop_event(self, event):
         if event.mimeData().hasUrls():
             items = event.mimeData().urls()
-            items = [item.toLocalFile() for item in items]
+            items = [Path(item.toLocalFile()) for item in items]
 
             files = self.get_lw_items(self.files_lw)
-            files.extend([item for item in items if Path(item).suffix in self.file_types])
+            files.extend([item for item in items if item.suffix in self.file_types])
 
-            dirs = [item for item in items if os.path.isdir(item)]
+            dirs = [item for item in items if item.is_dir()]
+
             for d in dirs:
                 for ext in self.file_types:
-                    files.extend(glob.glob(os.path.join(d, f"*{ext}")))
+                    files.extend(Path(d).glob(f'*{ext}'))
 
             files = [os.path.normpath(f) for f in files]
             files = list(dict.fromkeys(files))
@@ -463,9 +468,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def ref_tone_drop_event(self, event):
         if event.mimeData().hasUrls():
             items = event.mimeData().urls()
-            items = [item.toLocalFile() for item in items]
+            items = [Path(item.toLocalFile()) for item in items]
 
-            files = [item for item in items if Path(item).suffix in self.file_types]
+            files = [item for item in items if item.suffix in self.file_types]
             if files:
                 self.ref_tone = os.path.normpath(files[0])
                 p = Path(self.ref_tone)
