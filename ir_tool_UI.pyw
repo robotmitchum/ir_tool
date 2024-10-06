@@ -285,7 +285,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
             # Soundfile only recognizes aiff and not aif when writing
             sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-            sf.write(sf_path, ir, conv_sr, subtype=subtypes[bit_depth])
+            sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth])
             if sf_path != filepath:
                 os.rename(sf_path, filepath)
 
