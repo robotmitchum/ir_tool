@@ -40,7 +40,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.current_dir = Path(__file__).parent
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile('UI/icon48.png', QtCore.QSize(48, 48))
+        app_icon.addFile('UI/ir_tool_64.png', QtCore.QSize(64, 64))
         self.setWindowIcon(app_icon)
 
         self.file_types = ['.wav', '.flac', '.aif']
