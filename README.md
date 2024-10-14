@@ -12,7 +12,7 @@ Supports wav, flac and aif formats for input and output
 
 ## Installation
 
-This project was developed and tested with Python 3.11.5
+This project was developed and tested with Python 3.12.7
 
 Additional required packages :
 
