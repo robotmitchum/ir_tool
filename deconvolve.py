@@ -114,7 +114,7 @@ def generate_sweep(duration=4, sr=48000, db=-6, start_freq=20, window=True, os=1
 
     pad = np.array([0])
     if window:
-        pad = freq_to_period(start_freq, sr) * np.array([1, 1], dtype=np.int16)
+        pad = freq_to_period(start_freq, sr) * np.array([1, 1], dtype=np.int32)
 
     freq = np.logspace(np.log10(start_freq), np.log10(end_freq), (length - sum(pad)) * os, endpoint=True)
 
