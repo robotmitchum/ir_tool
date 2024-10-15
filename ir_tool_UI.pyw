@@ -19,58 +19,58 @@ import ctypes
 import os
 import shutil
 import sys
-from functools import partial
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import qdarkstyle
 import sounddevice as sd
 import soundfile as sf
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 
 import UI.ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
+        self.setWindowTitle(f'IR Tool v{__version__}')
+
         self.current_dir = Path(__file__).parent
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile('UI/ir_tool_64.png', QtCore.QSize(64, 64))
+        app_icon.addFile(resource_path('UI/ir_tool_64.png'), QtCore.QSize(64, 64))
         self.setWindowIcon(app_icon)
 
         self.file_types = ['.wav', '.flac', '.aif']
-        self.ref_tone = 'sweep_tone.wav'
         self.output_path = ''
 
-        self.setupUi(self)
+        # For auto-completion
+        self.ref_tone_path_l = cast(FilePathLabel, self.ref_tone_path_l)
+        self.output_path_l = cast(FilePathLabel, self.output_path_l)
 
-        # Check paths
-        if not os.path.isfile(self.ref_tone):
-            self.ref_tone = ''
-        self.ref_tone_path_l.setText(self.ref_tone)
-
-        if not os.path.isdir(self.output_path):
-            self.output_path = ''
-        self.output_path_l.setText(self.output_path)
-
-        self.last_file = self.output_path or self.ref_tone
-
-        self.output = None
         self.buffer = None
         self.data = None
 
         self.setup_connections()
+        self.last_file = self.output_path_l.fullPath() or self.ref_tone_path_l.fullPath()
+
+        self.progress_pb.setTextVisible(True)
+        self.progress_pb.setFormat(f'Batch deconvolve / process (trim/fade end, normalize) impulse responses')
 
         self.show()
 
     def setup_connections(self):
         # Ref tone widgets
-        self.set_ref_tone_tb.clicked.connect(self.set_ref_tone_path)
+        self.ref_tone_path_l = replace_widget(self.ref_tone_path_l, FilePathLabel(file_mode=True, parent=self))
+        self.ref_tone_path_l.setFullPath(resource_path('sweep_tone.wav'))
+        self.set_ref_tone_tb.clicked.connect(self.ref_tone_path_l.browse_path)
+        self.ref_tone_path_l.mouseDoubleClickEvent = self.play_sweep_tone
+
         self.gen_sweep_pb.clicked.connect(self.do_sweep_gen)
         self.gen_impulse_pb.clicked.connect(self.do_impulse_gen)
 
@@ -81,9 +81,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.files_lw.doubleClicked.connect(self.play_lw_item)
 
         # Output path widgets
-        self.set_output_path_tb.clicked.connect(self.set_output_path)
-        self.output_path_l.setContextMenuPolicy(3)
-        self.output_path_l.customContextMenuRequested.connect(self.output_path_l_ctx)
+        self.output_path_l = replace_widget(self.output_path_l, FilePathLabel(file_mode=False, parent=self))
+        self.set_output_path_tb.clicked.connect(self.output_path_l.browse_path)
 
         # Trim widgets
         self.trim_cb.stateChanged.connect(lambda state: self.trim_db_dsb.setEnabled(state == 2))
@@ -114,22 +113,12 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.process_pb.clicked.connect(self.do_deconvolve)
 
         # Custom events
-        self.ref_tone_path_l.mouseDoubleClickEvent = self.play_sweep_tone
-        self.ref_tone_path_l.setAcceptDrops(True)
-        self.ref_tone_path_l.dragEnterEvent = self.drag_enter_event
-        self.ref_tone_path_l.dragMoveEvent = self.drag_move_event
-        self.ref_tone_path_l.dropEvent = self.ref_tone_drop_event
 
         self.files_lw.keyPressEvent = self.key_del_lw_items_event
         self.files_lw.setAcceptDrops(True)
         self.files_lw.dragEnterEvent = self.drag_enter_event
         self.files_lw.dragMoveEvent = self.drag_move_event
         self.files_lw.dropEvent = self.lw_drop_event
-
-        self.output_path_l.setAcceptDrops(True)
-        self.output_path_l.dragEnterEvent = self.drag_enter_event
-        self.output_path_l.dragMoveEvent = self.drag_move_event
-        self.output_path_l.dropEvent = self.output_path_drop_event
 
     def do_sweep_gen(self):
         file_dialog = RefToneDialog(self)
@@ -215,20 +204,26 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     def do_deconvolve(self):
         count = self.files_lw.count()
-        if not self.ref_tone or count < 1:
+        deconv = self.deconv_cb.isChecked()
+
+        if count < 1:
+            self.progress_pb.setValue(0)
+            self.progress_pb.setFormat(f'No file(s) to process.')
+            return False
+
+        if deconv and not self.ref_tone_path_l.fullPath():
+            self.progress_pb.setValue(0)
+            self.progress_pb.setFormat(f'No reference tone provided.')
             return False
 
         self.progress_pb.setMaximum(count)
         self.progress_pb.setValue(0)
-        self.progress_pb.setTextVisible(True)
         self.progress_pb.setFormat('%p%')
 
-        orig, orig_sr = sf.read(self.ref_tone)
+        orig, orig_sr = sf.read(self.ref_tone_path_l.fullPath())
 
-        items = self.get_lw_items(self.files_lw)
+        items = self.get_lw_items()
         files = items
-
-        deconv = self.deconv_cb.isChecked()
 
         trim_db, fade_db = None, None
         if self.trim_cb.isChecked():
@@ -253,13 +248,15 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             conv, conv_sr = sf.read(f)
 
             if deconv and conv_sr != orig_sr:
-                print(f"{f}: sampling rate do not match reference tone, skipped.")
+                msg = f'{f}: sampling rate ({conv_sr}) does not match reference tone ({orig_sr}), skipped'
+                print(msg)
+                self.progress_pb.setFormat(msg)
                 continue
 
             p = Path(f)
-            parent = self.output_path or p.parent
+            parent = self.output_path_l.fullPath() or p.parent
             stem = p.stem
-            filepath = Path.joinpath(Path(parent), f'{stem}{suffix}.{ext}')
+            filepath = Path(parent, f'{stem}{suffix}.{ext}')
 
             if self.no_overwriting_cb.isChecked() and str(filepath) == f:
                 resolve_overwriting(f, mode='dir', dir_name='backup_', do_move=True)
@@ -285,9 +282,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                 if sf_path != filepath:
                     os.rename(sf_path, filepath)
                 done += 1
-            except Exception as e:
-                print(f'{filepath} could not be written')
-                self.progress_pb.setFormat(f'{filepath} could not be written')
+            except Exception:
+                msg = f'{filepath} could not be written'
+                print(msg)
+                self.progress_pb.setFormat(msg)
                 pass
 
             self.progress_pb.setValue(i + 1)
@@ -299,103 +297,126 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         return True
 
-    def set_ref_tone_path(self):
-        startdir = self.ref_tone or os.getcwd()
-        fmts = [f'*{fmt}' for fmt in self.file_types]
-        fltr = 'Audio File ({})'.format(' '.join(fmts))
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select reference tone", startdir, fltr)
-        if path:
-            self.ref_tone = os.path.normpath(path)
-            p = Path(self.ref_tone)
-            if p.is_relative_to(self.current_dir):
-                self.ref_tone = str(p.relative_to(self.current_dir))
-            self.ref_tone_path_l.setText(self.ref_tone)
-
-    def set_output_path(self):
-        startdir = self.output_path or os.getcwd()
-        path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select output directory", startdir)
-        if path:
-            self.output_path = os.path.normpath(path)
-            self.output_path_l.setText(self.output_path)
-
     def browse_files(self):
-        items = self.files_lw.selectedItems()
+        self.refresh_lw_items()
+        if not self.last_file:
+            items = self.files_lw.selectedItems() or self.get_lw_items()
+            items = [s.data(Qt.Qt.UserRole) for s in items]
+            if items:
+                self.last_file = items[-1]
 
-        items = [s.text() for s in items] or ['']
-        self.last_file = items[-1]
+        if self.last_file:
+            startdir = str(Path(self.last_file).parent)
+        else:
+            startdir = os.getcwd()
 
-        startdir = self.last_file or os.getcwd()
         fmts = [f'*{fmt}' for fmt in self.file_types]
         fltr = 'Audio Files ({});;All Files (*)'.format(' '.join(fmts))
         new_files, _ = QtWidgets.QFileDialog.getOpenFileNames(self, "Select audio files", startdir, fltr)
-        if new_files:
-            files = self.get_lw_items(self.files_lw)
-            new_files = [os.path.normpath(f) for f in new_files]
-            files.extend(new_files)
-            files = list(dict.fromkeys(files))
-            self.files_lw.clear()
-            self.files_lw.addItems(files)
-            self.last_file = files[-1]
 
-    def files_lw_ctx(self, *args):
+        if new_files:
+            files = self.get_lw_items()
+            files.extend(new_files)
+            self.add_lw_items(files)
+
+    def files_lw_ctx(self):
         menu = QtWidgets.QMenu(self)
         names = [menu.addAction(item) for item in ['Remove item(s) from list', 'Clear list']]
-        cmds = [partial(self.del_lw_items, self.files_lw), self.files_lw.clear]
+        cmds = [self.del_lw_items, self.files_lw.clear]
         action = menu.exec_(QtGui.QCursor.pos())
         for name, cmd in zip(names, cmds):
             if action == name:
                 cmd()
 
-    def output_path_l_ctx(self):
-        menu = QtWidgets.QMenu(self)
-        names, paths = ['Clear path'], ['']
-        names.append('Set to home directory')
-        paths.append(get_documents_directory())
-        actions = [menu.addAction(name) for name in names]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for a, path in zip(actions, paths):
-            if action == a:
-                self.output_path_l.setText(path)
+    def get_lw_items(self):
+        return [self.files_lw.item(i).data(Qt.Qt.UserRole) for i in range(self.files_lw.count())]
 
-    def get_lw_items(self, ui_item):
-        return [ui_item.item(i).text() for i in range(ui_item.count())]
+    def add_lw_items(self, files):
+        files = [os.path.normpath(f) for f in files]
+        files = list(dict.fromkeys(files))
+        names = [shorten_path(f) for f in files]
 
-    def del_lw_items(self, ui_item):
-        items = ui_item.selectedItems()
-        for item in items:
-            ui_item.takeItem(ui_item.row(item))
+        self.files_lw.clear()
+        self.files_lw.addItems(names)
 
-    def play_lw_item(self, *args):
-        data, sr = sf.read(args[0].data())
-        sd.play(data, sr)
+        for i, file_path in enumerate(files):
+            self.files_lw.item(i).setData(Qt.Qt.UserRole, file_path)
+
+        if files:
+            self.last_file = files[-1]
+
+    def refresh_lw_items(self):
+        lw_items = [self.files_lw.item(i) for i in range(self.files_lw.count())]
+        for item in lw_items:
+            f = item.data(Qt.Qt.UserRole)
+            if Path(f).is_file():
+                item.setText(shorten_path(f))
+            else:
+                self.files_lw.takeItem(self.files_lw.row(item))
+        self.files_lw.update()
+
+    def del_lw_items(self):
+        for item in self.files_lw.selectedItems():
+            self.files_lw.takeItem(self.files_lw.row(item))
+
+    @staticmethod
+    def play_lw_item(*args):
+        audio_file = args[0].data(Qt.Qt.UserRole)
+        if os.path.isfile(audio_file):
+            data, sr = sf.read(audio_file)
+            sd.play(data, sr)
 
     def play_sweep_tone(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            if os.path.isfile(self.ref_tone):
-                data, sr = sf.read(self.ref_tone)
+            if os.path.isfile(self.ref_tone_path_l.fullPath()):
+                data, sr = sf.read(self.ref_tone_path_l.fullPath())
                 sd.play(data, sr)
 
-    def play_notification(self):
-        audio_file = 'process_complete.flac'
+    @staticmethod
+    def play_notification():
+        audio_file = resource_path('process_complete.flac')
         if os.path.isfile(audio_file):
             data, sr = sf.read(audio_file)
             sd.play(data, sr)
 
     def key_del_lw_items_event(self, event):
-        if event.key() == 16777223:  # Key code for delete key
+        if event.key() == Qt.Qt.Key_Delete:
             items = self.files_lw.selectedItems()
             for item in items:
                 self.files_lw.takeItem(self.files_lw.row(item))
+
+        if event.key() == Qt.Qt.Key_Down:
+            mx = self.files_lw.count() - 1
+            sel_indices = [a.row() + 1 if a.row() < mx else mx for a in self.files_lw.selectedIndexes()]
+            self.files_lw.clearSelection()
+            for idx in sel_indices:
+                self.files_lw.item(idx).setSelected(True)
+        elif event.key() == Qt.Qt.Key_Up:
+            sel_indices = [a.row() - 1 if a.row() > 0 else 0 for a in self.files_lw.selectedIndexes()]
+            self.files_lw.clearSelection()
+            for idx in sel_indices:
+                self.files_lw.item(idx).setSelected(True)
+
+        elif event.modifiers() & Qt.Qt.ControlModifier:
+            if event.key() == Qt.Qt.Key_A:
+                self.files_lw.selectAll()
+            elif event.key() == Qt.Qt.Key_I:
+                items = self.files_lw.selectedItems()
+                self.files_lw.selectAll()
+                for item in items:
+                    item.setSelected(False)
         else:
             super().keyPressEvent(event)
 
-    def drag_enter_event(self, event):
+    @staticmethod
+    def drag_enter_event(event):
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
-    def drag_move_event(self, event):
+    @staticmethod
+    def drag_move_event(event):
         if event.mimeData().hasUrls():
             event.accept()
         else:
@@ -403,24 +424,19 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     def lw_drop_event(self, event):
         if event.mimeData().hasUrls():
+            self.refresh_lw_items()
             items = event.mimeData().urls()
             items = [Path(item.toLocalFile()) for item in items]
 
-            files = self.get_lw_items(self.files_lw)
-            files.extend([item for item in items if item.suffix in self.file_types])
+            files = self.get_lw_items()
+            files.extend([item for item in items if Path(item).suffix in self.file_types])
 
             dirs = [item for item in items if item.is_dir()]
-
             for d in dirs:
                 for ext in self.file_types:
                     files.extend(Path(d).glob(f'*{ext}'))
 
-            files = [os.path.normpath(f) for f in files]
-            files = list(dict.fromkeys(files))
-
-            self.files_lw.clear()
-            self.files_lw.addItems(files)
-            self.last_file = files[-1]
+            self.add_lw_items(files)
         else:
             event.ignore()
 
@@ -517,6 +533,128 @@ class RefToneDialog(QtWidgets.QFileDialog):
         custom_lyt.addWidget(self.w_cb)
 
 
+class FilePathLabel(QtWidgets.QLabel):
+    def __init__(self, text='', file_mode=False, parent=None):
+        super().__init__(text, parent)
+        self._full_path = ''
+        self._file_mode = file_mode
+
+        self.display_length = 40
+
+        self.start_dir = ''
+
+        self.current_dir = os.path.dirname(sys.modules['__main__'].__file__)
+
+        self.file_types = ['.wav', '.flac', '.aif']
+
+        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.context_menu)
+
+        self.setAcceptDrops(True)
+        self.dragEnterEvent = self.drag_enter_event
+        self.dragMoveEvent = self.drag_move_event
+
+    def setFullPath(self, path):
+        """
+        Set full path while updating display name
+        :param path:
+        :return:
+        """
+        if path:
+            path = os.path.normpath(path)
+            p = Path(path)
+            if p.is_relative_to(self.current_dir):
+                path = str(p.relative_to(self.current_dir))
+            self.start_dir = (path, str(Path(path).parent))[self._file_mode]
+        self._full_path = path
+        self.setText(shorten_path(path, self.display_length))
+
+    def fullPath(self):
+        return self._full_path
+
+    def browse_path(self):
+        if not self.start_dir or not Path(self.start_dir).is_dir():
+            self.start_dir = os.getcwd()
+
+        if self._file_mode:
+            fmts = [f'*{fmt}' for fmt in self.file_types]
+            fltr = 'Audio File ({})'.format(' '.join(fmts))
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select File", self.start_dir, fltr)
+        else:
+            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory", self.start_dir)
+
+        if path:
+            path = os.path.normpath(path)
+            p = Path(path)
+            if p.is_relative_to(self.current_dir):
+                path = str(p.relative_to(self.current_dir))
+            self.setFullPath(path)
+
+    def context_menu(self):
+        menu = QtWidgets.QMenu(self)
+        names, paths = ['Clear path'], ['']
+        if not self._file_mode:
+            names.append('Set to home directory')
+            paths.append(get_documents_directory())
+        actions = [menu.addAction(name) for name in names]
+        action = menu.exec_(QtGui.QCursor.pos())
+        for a, path in zip(actions, paths):
+            if action == a:
+                self.setFullPath(path)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            items = event.mimeData().urls()
+            items = [item.toLocalFile() for item in items]
+            if self._file_mode:
+                items = [item for item in items if Path(item).is_file()]
+            else:
+                items = [item for item in items if Path(item).is_dir()]
+            if items:
+                path = os.path.normpath(items[0])
+                p = Path(path)
+                if p.is_relative_to(self.current_dir):
+                    path = str(p.relative_to(self.current_dir))
+                self.setFullPath(path)
+        else:
+            event.ignore()
+
+    @staticmethod
+    def drag_enter_event(event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    @staticmethod
+    def drag_move_event(event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+
+def replace_widget(old_widget, new_widget):
+    """
+    Replace a placeholder widget with another widget (typically a customised version of this widget)
+    :param QtWidgets.QWidget old_widget:
+    :param QtWidgets.QWidget new_widget:
+    """
+
+    attrs = ['objectName', 'parent', 'toolTip']
+    values = [getattr(old_widget, attr)() for attr in attrs]
+
+    lyt = old_widget.parent().layout()
+    lyt.replaceWidget(old_widget, new_widget)
+    old_widget.close()
+
+    set_attrs = [f'set{a[0].upper()}{a[1:]}' for a in attrs]
+    for a, v in zip(set_attrs, values):
+        getattr(new_widget, a)(v)
+
+    return new_widget
+
+
 def get_documents_directory():
     if sys.platform == 'win32':
         import winreg
@@ -556,6 +694,12 @@ def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True
     return new_path
 
 
+def shorten_path(file_path, max_length=77):
+    if len(file_path) <= max_length:
+        return file_path
+    return '...' + file_path[-max_length:]
+
+
 def add_ctx(widget, values=(), names=None, trigger=None):
     """
     Add a simple context menu setting provided values to the given widget
@@ -593,6 +737,21 @@ def add_ctx(widget, values=(), names=None, trigger=None):
         widget.customContextMenuRequested.connect(show_context_menu)
     else:
         trigger.clicked.connect(show_context_menu)
+
+
+def resource_path(relative_path):
+    """
+    Get absolute path to resource, works for dev and for PyInstaller
+    https://stackoverflow.com/questions/31836104/pyinstaller-and-onefile-how-to-include-an-image-in-the-exe-file
+    :param str relative_path:
+    :return:
+    """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath('.')
+    return str(Path(base_path).joinpath(relative_path))
 
 
 if __name__ == "__main__":

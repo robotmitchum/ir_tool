@@ -70,8 +70,11 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_ref_tone_tb">
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <weight>75</weight>
           <bold>true</bold>
+          <strikeout>false</strikeout>
+          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -191,8 +194,11 @@ Double-click to play</string>
        <widget class="QToolButton" name="set_files_tb">
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <weight>75</weight>
           <bold>true</bold>
+          <strikeout>false</strikeout>
+          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -247,8 +253,11 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_output_path_tb">
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <weight>75</weight>
           <bold>true</bold>
+          <strikeout>false</strikeout>
+          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -712,8 +721,11 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
         </property>
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <weight>75</weight>
           <bold>true</bold>
+          <strikeout>false</strikeout>
+          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="text">
@@ -736,9 +748,6 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
-      </property>
-      <property name="textVisible">
-       <bool>false</bool>
       </property>
       <property name="format">
        <string notr="true"/>
