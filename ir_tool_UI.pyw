@@ -32,6 +32,9 @@ from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 import UI.ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
+if getattr(sys, 'frozen', False):
+    import pyi_splash  # noqa
+
 from __init__ import __version__
 
 
@@ -764,6 +767,10 @@ def resource_path(relative_path):
 
 if __name__ == "__main__":
     myappid = f'mitch.ir_tool.{__version__}'
+
+    with suppress(ModuleNotFoundError):
+        import pyi_splash  # noqa
+
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
@@ -775,9 +782,7 @@ if __name__ == "__main__":
     window = IrToolUi()
     window.show()
 
-    with suppress(ModuleNotFoundError):
-        import pyi_splash  # noqa
-
+    if getattr(sys, 'frozen', False):
         pyi_splash.close()
 
     sys.exit(app.exec_())
