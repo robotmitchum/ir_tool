@@ -21,6 +21,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import cast
+from contextlib import suppress
 
 import numpy as np
 import qdarkstyle
@@ -773,4 +774,10 @@ if __name__ == "__main__":
 
     window = IrToolUi()
     window.show()
+
+    with suppress(ModuleNotFoundError):
+        import pyi_splash  # noqa
+
+        pyi_splash.close()
+
     sys.exit(app.exec_())
