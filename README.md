@@ -18,7 +18,6 @@ Additional required packages :
 
 * PyQt5
 * numpy
-* scipy
 * soundfile
 * sounddevice
 * qdarkstyle
