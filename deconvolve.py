@@ -8,7 +8,7 @@
 
 import numpy as np
 from numpy.fft import fft, ifft
-from scipy import signal
+# from scipy import signal
 import math
 
 
@@ -88,7 +88,8 @@ def compensate_ir(audio, mode='rms', sr=48000):
         else:
             data = audio
         orig_vol = vol_func(test_tone)
-        conv = signal.fftconvolve(test_tone, data, mode='full')[:length]
+        # conv = signal.fftconvolve(test_tone, data, mode='full')[:length]
+        conv = np_fftconvolve(test_tone, data, mode='full')[:length]
         conv_vol = vol_func(conv)
         factor = orig_vol / conv_vol
         values.append(factor)
@@ -130,7 +131,8 @@ def generate_sweep(duration=4, sr=48000, db=-6, start_freq=20, window=True, os=1
         sweep *= w
 
     if os > 1:
-        sweep = signal.decimate(sweep, os, zero_phase=True)
+        # sweep = signal.decimate(sweep, os, zero_phase=True)
+        sweep = np_decimate(sweep, os, n=None)
 
     return sweep
 
@@ -179,7 +181,9 @@ def convolve(audio, ir, comp_ir=True, wet=1.0, sr=48000):
             ir_chn = ir
             au_chn = audio
 
-        conv = signal.fftconvolve(au_chn, ir_chn)[:length]
+        # conv = signal.fftconvolve(au_chn, ir_chn)[:length]
+        conv = np_fftconvolve(au_chn, ir_chn, mode='full')[:length]
+
         if result is None:
             result = conv
         else:
@@ -300,3 +304,49 @@ def np_log(array):
     :rtype: np.array
     """
     return np.subtract(1, np.subtract(1, array) ** 4)
+
+
+# Numpy implementations of scipy.signal functions
+
+def np_fftconvolve(a, b, mode='full'):
+    """
+    Perform fft convolution of array a by array b
+    :param np.array a:
+    :param np.array b:
+    :param str mode: 'full', 'same' or 'valid'
+    :return: Convolved result
+    :rtype: np.array
+    """
+    n = a.size + b.size - 1
+    a_fft = fft(a, n=n)
+    b_fft = fft(b, n=n)
+    result_fft = a_fft * b_fft
+    result = ifft(result_fft).real
+
+    match mode:
+        case 'full':
+            return result
+        case 'same':
+            start = (len(result) - len(a)) // 2
+            return result[start:start + len(a)]
+        case 'valid':
+            valid_size = len(a) - len(b) + 1
+            return result[len(b) - 1:len(b) - 1 + valid_size]
+        case _:
+            raise ValueError("mode must be 'full', 'same', or 'valid'")
+
+
+def np_decimate(x, q, n=None):
+    """
+    Decimate x by an integer factor q using a simple low-pass filter.
+    :param np.array x: input signal
+    :param int q: Decimate factor
+    :param int or None n: moving average filter size, default is 30
+    :return: Decimated result
+    :rtype: np.array
+    """
+    if n is None:
+        n = 8 * q
+    kernel = np.ones(n) / n
+    result = np.convolve(x, kernel, mode='same')
+    return result[::q]

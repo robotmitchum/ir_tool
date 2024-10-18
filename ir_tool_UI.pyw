@@ -31,7 +31,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 import UI.ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
-__version__ = '1.0.2'
+from __init__ import __version__
 
 
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
@@ -67,7 +67,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def setup_connections(self):
         # Ref tone widgets
         self.ref_tone_path_l = replace_widget(self.ref_tone_path_l, FilePathLabel(file_mode=True, parent=self))
+
         self.ref_tone_path_l.setFullPath(resource_path('sweep_tone.wav'))
+        self.ref_tone_path_l.validatePath()
+
         self.set_ref_tone_tb.clicked.connect(self.ref_tone_path_l.browse_path)
         self.ref_tone_path_l.mouseDoubleClickEvent = self.play_sweep_tone
 
@@ -571,6 +574,10 @@ class FilePathLabel(QtWidgets.QLabel):
 
     def fullPath(self):
         return self._full_path
+
+    def validatePath(self):
+        if not Path(self._full_path).exists():
+            self.setFullPath('')
 
     def browse_path(self):
         if not self.start_dir or not Path(self.start_dir).is_dir():
