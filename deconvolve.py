@@ -179,7 +179,6 @@ def convolve(audio, ir, comp_ir=True, wet=1.0, sr=48000):
             ir_chn = ir
             au_chn = audio
 
-        # conv = signal.fftconvolve(au_chn, ir_chn)[:length]
         conv = np_fftconvolve(au_chn, ir_chn, mode='full')[:length]
 
         if result is None:
@@ -339,7 +338,7 @@ def np_decimate(x, q, n=None):
     Decimate x by an integer factor q using a simple low-pass filter.
     :param np.array x: input signal
     :param int q: Decimate factor
-    :param int or None n: moving average filter size, default is 30
+    :param int or None n: moving average filter size, default is 8 times decimate factor
     :return: Decimated result
     :rtype: np.array
     """
