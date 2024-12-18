@@ -33,7 +33,9 @@ import UI.ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
 if getattr(sys, 'frozen', False):
-    import pyi_splash  # noqa
+    import pyi_splash
+
+    pyi_splash.close()
 
 from __init__ import __version__
 
@@ -750,19 +752,22 @@ def add_ctx(widget, values=(), names=None, trigger=None):
         trigger.clicked.connect(show_context_menu)
 
 
-def resource_path(relative_path):
+def resource_path(relative_path, as_str=True):
     """
     Get absolute path to resource, works for dev and for PyInstaller
+    Modified from :
     https://stackoverflow.com/questions/31836104/pyinstaller-and-onefile-how-to-include-an-image-in-the-exe-file
-    :param str relative_path:
+    :param str or WindowsPath relative_path:
+    :param bool as_str: Return result as a string
     :return:
+    :rtype: str or WindowsPath
     """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath('.')
-    return str(Path(base_path).joinpath(relative_path))
+    if hasattr(sys, '_MEIPASS'):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path().resolve()
+    result = base_path / relative_path
+    return (result, str(result))[bool(as_str)]
 
 
 if __name__ == "__main__":
