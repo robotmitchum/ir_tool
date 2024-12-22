@@ -17,6 +17,7 @@
 
 import ctypes
 import os
+import platform
 import shutil
 import sys
 from contextlib import suppress
@@ -776,7 +777,9 @@ if __name__ == "__main__":
     with suppress(ModuleNotFoundError):
         import pyi_splash  # noqa
 
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    if platform.system() == 'Windows':
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
 
