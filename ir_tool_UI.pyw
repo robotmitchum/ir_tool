@@ -30,7 +30,7 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 
-import UI.ir_tool_ui as gui
+from UI import ir_tool_ui as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 
 if getattr(sys, 'frozen', False):
