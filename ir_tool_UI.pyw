@@ -528,19 +528,20 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.w_cb.setToolTip('Apply raised cosine fade-in/fade-out to signal to avoid popping')
         self.w_cb.setHidden(True)
 
-        lyt = self.layout()
-        self.h_lyt = QtWidgets.QHBoxLayout()
-        custom_lyt = self.h_lyt
-        lyt.addWidget(QtWidgets.QWidget(self))
-        lyt.addItem(self.h_lyt)
+        custom_wid = QtWidgets.QWidget(self)
+        self.h_lyt = QtWidgets.QHBoxLayout(custom_wid)
 
-        custom_lyt.addWidget(self.length_l)
-        custom_lyt.addWidget(self.length_dsb)
-        custom_lyt.addWidget(self.sr_l)
-        custom_lyt.addWidget(self.sr_sb)
-        custom_lyt.addWidget(self.bd_l)
-        custom_lyt.addWidget(self.bd_cmb)
-        custom_lyt.addWidget(self.w_cb)
+        self.h_lyt.addWidget(self.length_l)
+        self.h_lyt.addWidget(self.length_dsb)
+        self.h_lyt.addWidget(self.sr_l)
+        self.h_lyt.addWidget(self.sr_sb)
+        self.h_lyt.addWidget(self.bd_l)
+        self.h_lyt.addWidget(self.bd_cmb)
+        self.h_lyt.addWidget(self.w_cb)
+
+        lyt = self.layout()
+        lyt.addWidget(QtWidgets.QWidget(self))
+        lyt.addWidget(custom_wid)
 
 
 class FilePathLabel(QtWidgets.QLabel):
