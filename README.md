@@ -13,7 +13,7 @@ Supports wav, flac and aif formats for input and output
 
 ## Installation
 
-For Windows users, an executable is available on this page, you don't need to install Python to use it
+**For Windows users, an executable is available on this page, you don't need to install Python to use it**
 
 This project was developed and tested with Python 3.12.8
 
