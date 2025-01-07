@@ -34,7 +34,7 @@ pip3 install -r requirements.txt
 
 ## Usage
 
-Execute ir_tool_UI.pyw
+Execute ir_tool_UI.py
 
 ```
 python ir_tool_UI.py
