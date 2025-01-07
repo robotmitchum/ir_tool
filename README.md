@@ -37,7 +37,7 @@ pip3 install -r requirements.txt
 Execute ir_tool_UI.pyw
 
 ```
-python ir_tool_UI.pyw
+python ir_tool_UI.py
 ```
 
 File and directory fields support drag and drop
