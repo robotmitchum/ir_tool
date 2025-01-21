@@ -8,7 +8,6 @@ Generate test tone (sweep and impulse click) to use for deconvolution and record
 
 Supports wav, flac and aif formats for input and output
 
-
 ![Alt Text](screencaps/irt_screencap_01.png)
 
 ## Installation
@@ -26,6 +25,7 @@ Additional required packages :
 * qdarkstyle
 
 Clone repository and install required packages
+
 ```
 git clone https://github.com/robotmitchum/ir_tool.git
 cd ir_tool
@@ -38,6 +38,12 @@ Execute ir_tool_UI.py
 
 ```
 python ir_tool_UI.py
+```
+
+or on MacOs
+
+```
+python3 ir_tool_UI.py
 ```
 
 File and directory fields support drag and drop
