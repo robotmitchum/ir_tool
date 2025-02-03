@@ -12,9 +12,6 @@
   </property>
   <property name="font">
    <font>
-    <pointsize>10</pointsize>
-    <strikeout>false</strikeout>
-    <stylestrategy>PreferAntialias</stylestrategy>
    </font>
   </property>
   <property name="windowTitle">
@@ -70,11 +67,7 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_ref_tone_tb">
         <property name="font">
          <font>
-          <pointsize>10</pointsize>
-          <weight>75</weight>
           <bold>true</bold>
-          <strikeout>false</strikeout>
-          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -194,11 +187,7 @@ Double-click to play</string>
        <widget class="QToolButton" name="set_files_tb">
         <property name="font">
          <font>
-          <pointsize>10</pointsize>
-          <weight>75</weight>
           <bold>true</bold>
-          <strikeout>false</strikeout>
-          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -253,11 +242,7 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_output_path_tb">
         <property name="font">
          <font>
-          <pointsize>10</pointsize>
-          <weight>75</weight>
           <bold>true</bold>
-          <strikeout>false</strikeout>
-          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="toolTip">
@@ -706,6 +691,19 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <item>
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
        <widget class="QPushButton" name="process_pb">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -731,6 +729,43 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
          <bool>false</bool>
         </property>
        </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="stop_pb">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Stop</string>
+        </property>
+        <property name="default">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_6">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </item>

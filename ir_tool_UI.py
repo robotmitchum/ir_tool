@@ -133,6 +133,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         # Process button
         self.process_pb.clicked.connect(partial(self.as_worker, self.do_deconvolve))
+        self.stop_pb.clicked.connect(self.stop_process)
 
         # Custom events
         self.files_lw.keyPressEvent = self.key_del_lw_items_event
@@ -264,6 +265,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             message_callback.emit('No reference tone provided')
             return False
 
+        self.process_pb.setEnabled(False)
+        self.stop_pb.setEnabled(True)
+
         range_callback.emit(0, count)
         progress_callback.emit(0)
         message_callback.emit('%p%')
@@ -294,6 +298,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         done = 0
         for i, f in enumerate(files):
             if worker.is_stopped():
+                progress_callback.emit(0)
+                message_callback.emit('Process Interrupted')
                 return False
 
             conv, conv_sr = sf.read(f)
@@ -307,7 +313,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             p = Path(f)
             parent = self.output_path_l.fullPath() or p.parent
             stem = p.stem
-            filepath = Path(parent, f'{stem}{suffix}.{ext}')
+            filepath = Path(parent) / f'{stem}{suffix}.{ext}'
 
             if self.no_overwriting_cb.isChecked() and str(filepath) == f:
                 resolve_overwriting(f, mode='dir', dir_name='backup_', do_move=True)
@@ -327,7 +333,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                     ir = compensate_ir(ir, mode='rms', sr=conv_sr)
 
             # Soundfile only recognizes aiff and not aif when writing
-            sf_path = (filepath, f'{filepath}f')[ext == 'aif']
+            sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
             try:
                 sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth])
                 if sf_path != filepath:
@@ -346,7 +352,18 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         self.play_notification()
 
+        self.process_pb.setEnabled(True)
+        self.stop_pb.setEnabled(False)
+
         return True
+
+    def stop_process(self):
+        for worker in self.active_workers:
+            if worker.running:
+                worker.request_stop()
+
+        self.process_pb.setEnabled(True)
+        self.stop_pb.setEnabled(False)
 
     def browse_files(self):
         self.refresh_lw_items()
