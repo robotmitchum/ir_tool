@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'ir_tool.ui'
+# Form implementation generated from reading ui file 'C:\Users\mitch\Documents\PycharmProjects\github\ir_tool\UI\ir_tool.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -328,11 +328,7 @@ class Ui_ir_tool_mw(object):
         self.process_pb.setSizePolicy(sizePolicy)
         self.process_pb.setMinimumSize(QtCore.QSize(160, 0))
         font = QtGui.QFont()
-        font.setPointSize(10)
         font.setBold(True)
-        font.setWeight(75)
-        font.setStrikeOut(False)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.process_pb.setFont(font)
         self.process_pb.setDefault(False)
         self.process_pb.setObjectName("process_pb")

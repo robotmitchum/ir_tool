@@ -721,11 +721,7 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
         </property>
         <property name="font">
          <font>
-          <pointsize>10</pointsize>
-          <weight>75</weight>
           <bold>true</bold>
-          <strikeout>false</strikeout>
-          <stylestrategy>PreferAntialias</stylestrategy>
          </font>
         </property>
         <property name="text">
