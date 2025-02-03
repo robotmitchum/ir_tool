@@ -21,6 +21,7 @@ import platform
 import shutil
 import sys
 from contextlib import suppress
+from functools import partial
 from pathlib import Path
 from typing import cast
 
@@ -30,8 +31,9 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 
-from UI import ir_tool_ui as gui
+from UI import ir_tool as gui
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
+from worker import Worker
 
 if getattr(sys, 'frozen', False):
     import pyi_splash
@@ -60,6 +62,12 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.ref_tone_path_l = cast(FilePathLabel, self.ref_tone_path_l)
         self.output_path_l = cast(FilePathLabel, self.output_path_l)
 
+        self.threadpool = QtCore.QThreadPool(parent=self)
+        self.worker = None
+        self.active_workers = []
+        self.worker_result = None
+        self.event_loop = QtCore.QEventLoop()
+
         self.buffer = None
         self.data = None
 
@@ -67,14 +75,14 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.last_file = self.output_path_l.fullPath() or self.ref_tone_path_l.fullPath()
 
         self.progress_pb.setTextVisible(True)
-        self.progress_pb.setFormat(f'Batch deconvolve / process (trim/fade end, normalize) impulse responses')
+        self.update_message(f'Batch deconvolve / process (trim/fade end, normalize) impulse responses')
 
         self.show()
 
     def setup_connections(self):
         # Ref tone widgets
         self.ref_tone_path_l = replace_widget(self.ref_tone_path_l, FilePathLabel(file_mode=True, parent=self))
-
+        add_ctx(self.ref_tone_path_l, values=[''], names=['Clear'])
         self.ref_tone_path_l.setFullPath(resource_path('sweep_tone.wav'))
         self.ref_tone_path_l.validatePath()
 
@@ -92,6 +100,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         # Output path widgets
         self.output_path_l = replace_widget(self.output_path_l, FilePathLabel(file_mode=False, parent=self))
+        default_dir = get_user_directory()
+        desktop_dir = get_user_directory('Desktop')
+        add_ctx(self.output_path_l, values=['', default_dir, desktop_dir],
+                names=['Clear', 'Default directory', 'Desktop'])
         self.set_output_path_tb.clicked.connect(self.output_path_l.browse_path)
 
         # Trim widgets
@@ -120,10 +132,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         add_ctx(self.suffix_le, values=['_result', '_dc', '_trim', '_norm'])
 
         # Process button
-        self.process_pb.clicked.connect(self.do_deconvolve)
+        self.process_pb.clicked.connect(partial(self.as_worker, self.do_deconvolve))
 
         # Custom events
-
         self.files_lw.keyPressEvent = self.key_del_lw_items_event
         self.files_lw.setAcceptDrops(True)
         self.files_lw.dragEnterEvent = self.drag_enter_event
@@ -138,38 +149,51 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         if file_dialog.exec_():
             files = file_dialog.selectedFiles()
             if files:
-                self.progress_pb.setMaximum(1)
-                self.progress_pb.setValue(0)
-                self.progress_pb.setTextVisible(True)
-                self.progress_pb.setFormat('%p%')
+                fp = Path(files[0])
+                if not fp.suffix:
+                    fp = fp.with_suffix('.wav')
 
-                filepath = files[0]
-                ext = Path(filepath).suffix.lstrip('.')
-                if not ext:
-                    ext = 'wav'
-                    filepath = f'{filepath}.{ext}'
+                kwargs = {
+                    'filepath': fp,
+                    'duration': file_dialog.length_dsb.value(),
+                    'sr': file_dialog.sr_sb.value(),
+                    'bit_depth': int(file_dialog.bd_cmb.currentText()),
+                    'windowed': file_dialog.w_cb.isChecked()
+                }
 
-                subtypes = {16: 'PCM_16', 24: 'PCM_24'}
-                if ext == 'flac':
-                    subtypes[32] = 'PCM_24'
-                else:
-                    subtypes[32] = 'FLOAT'
-
-                duration = file_dialog.length_dsb.value()
-                sr = file_dialog.sr_sb.value()
-                bit_depth = int(file_dialog.bd_cmb.currentText())
-                data = generate_sweep(duration, sr=sr, db=-6, window=file_dialog.w_cb.isChecked())
-
-                # Soundfile only recognizes aiff and not aif when writing
-                sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-                sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
-                if str(sf_path) != filepath:
-                    os.rename(sf_path, filepath)
-
-                self.progress_pb.setValue(1)
-                self.progress_pb.setFormat(f'{Path(filepath).name} generated.')
-
+                self.as_worker(partial(self.sweep_gen_process, **kwargs))
                 self.play_notification()
+
+    @staticmethod
+    def sweep_gen_process(worker, progress_callback, message_callback,
+                          filepath, duration, sr, bit_depth, windowed):
+
+        range_callback = worker.signals.progress_range
+
+        range_callback.emit(0, 1)
+        progress_callback.emit(0)
+        message_callback.emit('%p%')
+
+        ext = filepath.suffix[1:]
+
+        subtypes = {16: 'PCM_16', 24: 'PCM_24'}
+        if ext == 'flac':
+            subtypes[32] = 'PCM_24'
+        else:
+            subtypes[32] = 'FLOAT'
+
+        data = generate_sweep(duration, sr=sr, db=-6, window=windowed)
+
+        # Soundfile only recognizes aiff and not aif when writing
+        sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
+        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
+        if str(sf_path) != filepath:
+            os.rename(sf_path, filepath)
+
+        progress_callback.emit(1)
+        message_callback.emit(f'{filepath.name} generated.')
+
+        return filepath
 
     def do_impulse_gen(self):
         file_dialog = RefToneDialog(self)
@@ -179,56 +203,70 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         if file_dialog.exec_():
             files = file_dialog.selectedFiles()
             if files:
-                self.progress_pb.setMaximum(1)
-                self.progress_pb.setValue(0)
-                self.progress_pb.setTextVisible(True)
-                self.progress_pb.setFormat('%p%')
+                fp = Path(files[0])
+                if not fp.suffix:
+                    fp = fp.with_suffix('.wav')
 
-                filepath = files[0]
-                ext = Path(filepath).suffix.lstrip('.')
-                if not ext:
-                    ext = 'wav'
-                    filepath = f'{filepath}.{ext}'
+                kwargs = {
+                    'filepath': fp,
+                    'duration': file_dialog.length_dsb.value(),
+                    'sr': file_dialog.sr_sb.value(),
+                    'bit_depth': int(file_dialog.bd_cmb.currentText()),
+                }
 
-                subtypes = {16: 'PCM_16', 24: 'PCM_24'}
-                if ext == 'flac':
-                    subtypes[32] = 'PCM_24'
-                else:
-                    subtypes[32] = 'FLOAT'
-
-                duration = file_dialog.length_dsb.value()
-                sr = file_dialog.sr_sb.value()
-                bit_depth = int(file_dialog.bd_cmb.currentText())
-                data = generate_impulse(duration, sr=sr, db=-0.5)
-
-                # Soundfile only recognizes 'aiff' and not 'aif' when writing
-                sf_path = (filepath, f'{filepath}f')[ext == 'aif']
-                sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
-                if str(sf_path) != filepath:
-                    os.rename(sf_path, filepath)
-
-                self.progress_pb.setValue(1)
-                self.progress_pb.setFormat(f'{Path(filepath).name} generated.')
-
+                self.as_worker(partial(self.impulse_gen_process, **kwargs))
                 self.play_notification()
 
-    def do_deconvolve(self):
+    @staticmethod
+    def impulse_gen_process(worker, progress_callback, message_callback,
+                            filepath, duration, sr, bit_depth):
+
+        range_callback = worker.signals.progress_range
+
+        range_callback.emit(0, 1)
+        progress_callback.emit(0)
+        message_callback.emit('%p%')
+
+        ext = filepath.suffix[1:]
+
+        subtypes = {16: 'PCM_16', 24: 'PCM_24'}
+        if ext == 'flac':
+            subtypes[32] = 'PCM_24'
+        else:
+            subtypes[32] = 'FLOAT'
+
+        data = generate_impulse(duration, sr=sr, db=-0.5)
+
+        # Soundfile only recognizes aiff and not aif when writing
+        sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
+        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth])
+        if str(sf_path) != filepath:
+            os.rename(sf_path, filepath)
+
+        progress_callback.emit(1)
+        message_callback.emit(f'{filepath.name} generated.')
+
+        return filepath
+
+    def do_deconvolve(self, worker, progress_callback, message_callback):
         count = self.files_lw.count()
         deconv = self.deconv_cb.isChecked()
 
+        range_callback = worker.signals.progress_range
+
         if count < 1:
-            self.progress_pb.setValue(0)
-            self.progress_pb.setFormat(f'No file(s) to process.')
+            progress_callback.emit(0)
+            message_callback.emit('No file(s) to process')
             return False
 
         if deconv and not self.ref_tone_path_l.fullPath():
-            self.progress_pb.setValue(0)
-            self.progress_pb.setFormat(f'No reference tone provided.')
+            progress_callback.emit(0)
+            message_callback.emit('No reference tone provided')
             return False
 
-        self.progress_pb.setMaximum(count)
-        self.progress_pb.setValue(0)
-        self.progress_pb.setFormat('%p%')
+        range_callback.emit(0, count)
+        progress_callback.emit(0)
+        message_callback.emit('%p%')
 
         orig, orig_sr = sf.read(self.ref_tone_path_l.fullPath())
 
@@ -255,12 +293,15 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         done = 0
         for i, f in enumerate(files):
+            if worker.is_stopped():
+                return False
+
             conv, conv_sr = sf.read(f)
 
             if deconv and conv_sr != orig_sr:
                 msg = f'{f}: sampling rate ({conv_sr}) does not match reference tone ({orig_sr}), skipped'
                 print(msg)
-                self.progress_pb.setFormat(msg)
+                message_callback.emit(msg)
                 continue
 
             p = Path(f)
@@ -292,17 +333,17 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                 if sf_path != filepath:
                     os.rename(sf_path, filepath)
                 done += 1
-            except Exception:
+            except Exception as e:
                 msg = f'{filepath} could not be written'
                 print(msg)
-                self.progress_pb.setFormat(msg)
-                pass
+                message_callback.emit(msg)
 
-            self.progress_pb.setValue(i + 1)
+            progress_callback.emit(i + 1)
 
-        self.progress_pb.setFormat(f'{done} of {count} file(s) processed.')
+        message_callback.emit(f'{done} of {count} file(s) processed.')
         if done < count:
-            self.progress_pb.setFormat('Some file(s) could not be processed. Please check settings.')
+            message_callback.emit('Some file(s) could not be processed. Please check settings.')
+
         self.play_notification()
 
         return True
@@ -477,6 +518,41 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         else:
             event.ignore()
 
+    def as_worker(self, cmd):
+        if not any(worker.running for worker in self.active_workers):
+            self.worker = Worker(cmd)
+
+            # Worker signals
+            self.worker.signals.progress.connect(self.update_progress)
+            self.worker.signals.progress_range.connect(self.update_range)
+            self.worker.signals.message.connect(self.update_message)
+            self.worker.signals.result.connect(self.handle_result)
+
+            self.worker.signals.finished.connect(lambda: self.cleanup_worker(self.worker))
+
+            self.active_workers.append(self.worker)
+            self.threadpool.start(self.worker)
+        else:
+            print('Task is already running!')
+
+    def update_progress(self, value):
+        self.progress_pb.setValue(value)
+
+    def update_message(self, message):
+        self.progress_pb.setFormat(message)
+
+    def update_range(self, mn, mx):
+        self.progress_pb.setRange(mn, mx)
+        self.progress_pb.update()
+
+    def handle_result(self, value):
+        self.worker_result = value
+        self.event_loop.quit()
+
+    def cleanup_worker(self, worker):
+        if worker in self.active_workers:
+            self.active_workers.remove(worker)
+
 
 class RefToneDialog(QtWidgets.QFileDialog):
     def __init__(self, *args):
@@ -525,7 +601,7 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.w_cb = QtWidgets.QCheckBox('Windowed', self)
         self.w_cb.setSizePolicy(size_policy)
         self.w_cb.setChecked(True)
-        self.w_cb.setToolTip('Apply raised cosine fade-in/fade-out to signal to avoid popping')
+        self.w_cb.setToolTip('Apply Tukey window to signal to avoid popping')
         self.w_cb.setHidden(True)
 
         custom_wid = QtWidgets.QWidget(self)
@@ -549,21 +625,17 @@ class FilePathLabel(QtWidgets.QLabel):
         super().__init__(text, parent)
         self._full_path = ''
         self._file_mode = file_mode
-
         self.display_length = 40
-
         self.start_dir = ''
-
         self.current_dir = os.path.dirname(sys.modules['__main__'].__file__)
-
         self.file_types = ['.wav', '.flac', '.aif']
 
-        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.context_menu)
+        # self.setStyleSheet('QLabel{color: #808080}')
 
         self.setAcceptDrops(True)
-        self.dragEnterEvent = self.drag_enter_event
-        self.dragMoveEvent = self.drag_move_event
+
+    def fullPath(self):
+        return self._full_path
 
     def setFullPath(self, path):
         """
@@ -578,14 +650,16 @@ class FilePathLabel(QtWidgets.QLabel):
                 path = str(p.relative_to(self.current_dir))
             self.start_dir = (path, str(Path(path).parent))[self._file_mode]
         self._full_path = path
-        self.setText(shorten_path(path, self.display_length))
-
-    def fullPath(self):
-        return self._full_path
+        self.setText(self.shorten_path(path))
 
     def validatePath(self):
         if not Path(self._full_path).exists():
             self.setFullPath('')
+
+    def shorten_path(self, path):
+        if len(path) > self.display_length:
+            return f"...{path[-self.display_length:]}"
+        return path
 
     def browse_path(self):
         if not self.start_dir or not Path(self.start_dir).is_dir():
@@ -605,18 +679,6 @@ class FilePathLabel(QtWidgets.QLabel):
                 path = str(p.relative_to(self.current_dir))
             self.setFullPath(path)
 
-    def context_menu(self):
-        menu = QtWidgets.QMenu(self)
-        names, paths = ['Clear path'], ['']
-        if not self._file_mode:
-            names.append('Set to home directory')
-            paths.append(get_documents_directory())
-        actions = [menu.addAction(name) for name in names]
-        action = menu.exec_(QtGui.QCursor.pos())
-        for a, path in zip(actions, paths):
-            if action == a:
-                self.setFullPath(path)
-
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
             items = event.mimeData().urls()
@@ -634,15 +696,13 @@ class FilePathLabel(QtWidgets.QLabel):
         else:
             event.ignore()
 
-    @staticmethod
-    def drag_enter_event(event):
+    def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
-    @staticmethod
-    def drag_move_event(event):
+    def dragMoveEvent(self, event):
         if event.mimeData().hasUrls():
             event.accept()
         else:
@@ -670,17 +730,38 @@ def replace_widget(old_widget, new_widget):
     return new_widget
 
 
-def get_documents_directory():
+def get_user_directory(subdir='Documents'):
     if sys.platform == 'win32':
         import winreg
+
+        folders = {
+            'Desktop': 'Desktop',
+            'Documents': 'Personal',
+            'Downloads': '{374DE290-123F-4565-9164-39C4925E467B}',
+            'Music': 'My Music',
+            'Pictures': 'My Pictures',
+            'Videos': 'My Video',
+        }
+        folders_lowercase = {k.lower(): v for k, v in folders.items()}
+
+        p = Path(subdir)
+        subdir_root = p.parts[0].lower()
+        key_name = folders_lowercase.get(subdir_root, 'desktop')
+
         # This works even if user profile has been moved to some other drive
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
                             r'Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
-            path, _ = winreg.QueryValueEx(key, 'Personal')
+            result, _ = winreg.QueryValueEx(key, key_name)
+            result = Path(result)
+
+        if subdir_root in folders_lowercase:
+            result = result / '/'.join(p.parts[1:])
+        else:
+            result = result.parent / subdir
     else:
-        homepath = Path.home()
-        path = homepath / 'Documents'
-    return path
+        result = Path.home() / subdir
+
+    return result
 
 
 def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True):
@@ -762,7 +843,7 @@ def resource_path(relative_path, as_str=True):
     :param str or WindowsPath relative_path:
     :param bool as_str: Return result as a string
     :return:
-    :rtype: str or WindowsPath
+    :rtype: str or Path
     """
     if hasattr(sys, '_MEIPASS'):
         base_path = Path(sys._MEIPASS)
