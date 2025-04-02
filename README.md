@@ -22,7 +22,6 @@ Additional required packages :
 * numpy
 * soundfile
 * sounddevice
-* qdarkstyle
 
 Clone repository and install required packages
 

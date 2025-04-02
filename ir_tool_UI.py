@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import cast
 
 import numpy as np
-import qdarkstyle
+from dark_fusion_style import apply_dark_theme
 import sounddevice as sd
 import soundfile as sf
 from PyQt5 import QtWidgets, QtGui, QtCore, Qt
@@ -880,14 +880,14 @@ if __name__ == "__main__":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+    apply_dark_theme(app)
 
-    if platform.system() == "Darwin":
-        macos_style = """
-                QComboBox{combobox-popup: 0;}
-                QComboBox QAbstractItemView {min-width: 36px;}
-            """
-        app.setStyleSheet(app.styleSheet() + macos_style)
+    # if platform.system() == "Darwin":
+    #     macos_style = """
+    #             QComboBox{combobox-popup: 0;}
+    #             QComboBox QAbstractItemView {min-width: 36px;}
+    #         """
+    #     app.setStyleSheet(app.styleSheet() + macos_style)
 
     font = app.font()
     font.setPointSize(12)
