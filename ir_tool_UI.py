@@ -44,8 +44,8 @@ from __init__ import __version__
 
 
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
         self.setupUi(self)
         self.setWindowTitle(f'IR Tool v{__version__}')
 
@@ -868,6 +868,10 @@ def resource_path(relative_path, as_str=True):
         base_path = Path().resolve()
     result = base_path / relative_path
     return (result, str(result))[bool(as_str)]
+
+
+def run(parent=None):
+    return IrToolUi(parent)
 
 
 if __name__ == "__main__":

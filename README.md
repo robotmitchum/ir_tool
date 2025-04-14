@@ -1,5 +1,7 @@
 # IR Tool
 
+![IR Tool](UI/ir_tool_64.png)
+
 Impulse Response tool
 
 Batch deconvolve and process (trim / fade end, gain compensate / normalize) impulse responses
@@ -8,7 +10,7 @@ Generate test tone (sweep and impulse click) to use for deconvolution and record
 
 Supports wav, flac and aif formats for input and output
 
-![Alt Text](screencaps/irt_screencap_01.png)
+![IR Tool UI](screencaps/ir_tool_ui.png)
 
 ## Installation
 
