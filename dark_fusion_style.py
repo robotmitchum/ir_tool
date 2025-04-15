@@ -60,20 +60,22 @@ def apply_dark_theme(widget):
     QToolTip.setPalette(dark_plt)
 
     # Also style QMessageBox and QFileDialog buttons
+    style = ''
     for wid_type in ('QMessageBox', 'QFileDialog'):
-        widget.setStyleSheet(f"""
-                {wid_type} QPushButton {{
-                    background-color: #474747;
-                    color: #dfdfdf;
-                    border: 1px solid #5c5c5c;
-                    padding: 5px 10px;
-                    border-radius: 4px;
-                    min-width: 80px;
-                }}
-                {wid_type} QPushButton:hover {{
-                    background-color: #5e5e5e;
-                }}
-                {wid_type} QPushButton:pressed {{
-                    background-color: #3d3d3d;
-                }}
-            """)
+        style += f"""
+            {wid_type} QPushButton {{
+                background-color: #474747;
+                color: #dfdfdf;
+                border: 1px solid #5c5c5c;
+                padding: 5px 10px;
+                border-radius: 4px;
+                min-width: 80px;
+            }}
+            {wid_type} QPushButton:hover {{
+                background-color: #5e5e5e;
+            }}
+            {wid_type} QPushButton:pressed {{
+                background-color: #3d3d3d;
+            }}
+        """
+    widget.setStyleSheet(style)
