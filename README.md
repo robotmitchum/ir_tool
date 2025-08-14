@@ -30,6 +30,12 @@ Clone repository and install required packages
 ```
 git clone https://github.com/robotmitchum/ir_tool.git
 cd ir_tool
+pip install -r requirements.txt
+```
+
+or on MacOs
+
+```
 pip3 install -r requirements.txt
 ```
 

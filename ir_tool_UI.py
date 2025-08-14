@@ -26,12 +26,13 @@ from pathlib import Path
 from typing import cast
 
 import numpy as np
-from dark_fusion_style import apply_dark_theme
 import sounddevice as sd
 import soundfile as sf
 from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 
 from UI import ir_tool as gui
+from common_prefs_utils import Node, get_settings, set_settings, read_settings, write_settings
+from dark_fusion_style import apply_dark_theme
 from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
 from worker import Worker
 
@@ -46,13 +47,20 @@ from __init__ import __version__
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setupUi(self)
-        self.setWindowTitle(f'IR Tool v{__version__}')
 
         self.current_dir = Path(__file__).parent
+        self.base_dir = self.current_dir.parent
+
+        self.setupUi(self)
+        self.tool_name = 'IR Tool'
+        self.tool_version = __version__
+        self.icon_file = resource_path(self.current_dir / 'UI/ir_tool_64.png')
+        self.setWindowTitle(f'{self.tool_name} v{self.tool_version}')
+
+        self.options = Node()
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile(resource_path('UI/ir_tool_64.png'), QtCore.QSize(64, 64))
+        app_icon.addFile(self.icon_file, QtCore.QSize(64, 64))
         self.setWindowIcon(app_icon)
 
         self.file_types = ['.wav', '.flac', '.aif']
@@ -71,7 +79,13 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.buffer = None
         self.data = None
 
+        self.setup_menu_bar()
+        self.default_settings = Node()
+        self.settings_ext = 'irtool'
+        self.settings_path = None
+
         self.setup_connections()
+        self.set_settings_path()
         self.last_file = self.output_path_l.fullPath() or self.ref_tone_path_l.fullPath()
 
         self.progress_pb.setTextVisible(True)
@@ -111,20 +125,18 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.trim_cb.stateChanged.connect(lambda state: self.fadeout_cb.setEnabled(state == 2))
         self.trim_cb.stateChanged.connect(
             lambda state: self.fadeout_db_dsb.setEnabled(state == 2 and self.fadeout_cb.isChecked()))
-        self.fadeout_cb.stateChanged.connect(
-            lambda state: self.fadeout_db_dsb.setEnabled(state == 2 and self.trim_cb.isChecked()))
 
         add_ctx(self.trim_db_dsb, values=[-60, -90, -120])
         add_ctx(self.fadeout_db_dsb, values=[-48, -60, -90, -120])
 
         # Normalize widgets
-        self.normalize_cb.stateChanged.connect(lambda state: self.normalize_cmb.setEnabled(state == 2))
-        self.normalize_cb.stateChanged.connect(
-            lambda state: self.peak_db_dsb.setEnabled(state == 2 and self.normalize_cmb.currentText() == 'peak'))
+        self.normalize_cb.stateChanged.connect(lambda state: self.normalize_wid.setEnabled(state == 2))
         self.normalize_cmb.currentTextChanged.connect(
-            lambda state: self.peak_db_dsb.setEnabled(state == 'peak' and self.normalize_cb.isChecked()))
+            lambda state: self.normalize_amp_dsb.setMaximum((0, 12)[state == 'compensate']))
+        self.normalize_cmb.currentTextChanged.connect(
+            lambda state: self.normalize_amp_dsb.setValue((-0.5, 0)[state == 'compensate']))
 
-        add_ctx(self.peak_db_dsb, values=[-0.5, -6, -12, -18])
+        add_ctx(self.normalize_amp_dsb, values=[12, 0, -0.5, -6, -12, -18])
 
         # Suffix widget
         self.add_suffix_cb.stateChanged.connect(lambda state: self.suffix_le.setEnabled(state == 2))
@@ -141,6 +153,58 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.files_lw.dragEnterEvent = self.drag_enter_event
         self.files_lw.dragMoveEvent = self.drag_move_event
         self.files_lw.dropEvent = self.lw_drop_event
+
+        # Settings
+        self.load_settings_a.triggered.connect(self.load_settings)
+        self.save_settings_a.triggered.connect(self.save_settings)
+        self.restore_defaults_a.triggered.connect(self.restore_defaults)
+        self.get_defaults()
+
+        # Help
+        self.visit_github_a.triggered.connect(self.visit_github)
+        self.about_a.triggered.connect(self.about_dialog)
+
+    def setup_menu_bar(self):
+        self.menu_bar = QtWidgets.QMenuBar(self)
+        self.menu_bar.setNativeMenuBar(False)
+
+        plt = self.menu_bar.palette()
+        plt.setColor(QtGui.QPalette.Background, QtGui.QColor(39, 39, 39))
+        self.menu_bar.setPalette(plt)
+
+        # Settings Menu
+        self.settings_menu = QtWidgets.QMenu(self.menu_bar)
+        self.settings_menu.setTitle('Settings')
+
+        self.save_settings_a = QtWidgets.QAction(self)
+        self.save_settings_a.setText('Save settings')
+        self.load_settings_a = QtWidgets.QAction(self)
+        self.load_settings_a.setText('Load settings')
+        self.restore_defaults_a = QtWidgets.QAction(self)
+        self.restore_defaults_a.setText('Restore defaults')
+
+        self.settings_menu.addAction(self.load_settings_a)
+        self.settings_menu.addAction(self.save_settings_a)
+        self.settings_menu.addSeparator()
+        self.settings_menu.addAction(self.restore_defaults_a)
+
+        self.menu_bar.addAction(self.settings_menu.menuAction())
+
+        # Help Menu
+        self.help_menu = QtWidgets.QMenu(self.menu_bar)
+        self.help_menu.setTitle('?')
+        self.visit_github_a = QtWidgets.QAction(self)
+        self.visit_github_a.setText('Visit repository on github')
+        self.about_a = QtWidgets.QAction(self)
+        self.about_a.setText('About')
+
+        self.help_menu.addAction(self.visit_github_a)
+        self.help_menu.addAction(self.about_a)
+
+        self.menu_bar.addAction(self.help_menu.menuAction())
+
+        # Add menu bar
+        self.setMenuBar(self.menu_bar)
 
     def do_sweep_gen(self):
         file_dialog = RefToneDialog(self)
@@ -327,10 +391,15 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             ir = trim_end(ir, trim_db=trim_db, fade_db=fade_db, min_silence=mn_s, min_length=None)
 
             if self.normalize_cb.isChecked():
+                amp = self.normalize_amp_dsb.value()
                 if self.normalize_cmb.currentText() == 'peak':
-                    ir *= db_to_lin(self.peak_db_dsb.value()) / np.max(np.abs(ir))
+                    ir *= db_to_lin(amp) / np.max(np.abs(ir))
                 elif self.normalize_cmb.currentText() == 'compensate':
                     ir = compensate_ir(ir, mode='rms', sr=conv_sr)
+                    # Amplification
+                    # Useful to compensate DS convolution built-in attenuation which appears to be -12 dB
+                    if abs(amp) > 1e-3:
+                        ir *= db_to_lin(amp)
 
             # Soundfile only recognizes aiff and not aif when writing
             sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
@@ -395,6 +464,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         for name, cmd in zip(names, cmds):
             if action == name:
                 cmd()
+        menu.deleteLater()
 
     def get_lw_items(self):
         return [self.files_lw.item(i).data(Qt.Qt.UserRole) for i in range(self.files_lw.count())]
@@ -570,6 +640,66 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         if worker in self.active_workers:
             self.active_workers.remove(worker)
 
+    def load_settings(self):
+        self.update_progress(0)
+        p = Path(self.settings_path)
+        if p.suffix == f'.{self.settings_ext}':
+            p = p.parent
+        result = read_settings(widget=self, filepath=None, startdir=p, ext=self.settings_ext)
+        if result:
+            os.chdir(result.parent)
+            self.progress_pb.setFormat(f'{result.name} loaded')
+
+    def save_settings(self):
+        self.update_progress(0)
+        result = write_settings(widget=self, filepath=None, startdir=self.settings_path, ext=self.settings_ext)
+        if result:
+            os.chdir(result.parent)
+            self.progress_pb.setFormat(f'{result.name} saved')
+
+    def get_defaults(self):
+        get_settings(self, self.default_settings)
+
+    def restore_defaults(self):
+        self.update_progress(0)
+        set_settings(widget=self, node=self.default_settings)
+        self.progress_pb.setFormat(f'Default settings restored')
+
+    def set_settings_path(self):
+        p = Path(os.getcwd())
+        output_path = self.output_path_l.fullPath()
+        if output_path:
+            p = Path(output_path)
+        elif self.files_lw.count():
+            sel = self.get_sel_lw_items()
+            items = self.get_lw_items()
+            if sel:
+                p = Path(sel[0]).parent
+            elif items:
+                p = Path(items[0]).parent
+        self.settings_path = p / f'settings.{self.settings_ext}'
+
+    def about_dialog(self):
+        try:
+            about_dlg = AboutDialog(parent=self)
+            about_dlg.icon_file = self.icon_file
+            about_dlg.title = f'About {self.tool_name}'
+            about_dlg.text = f'{self.tool_name}<br>Version {self.tool_version}<br><br>'
+            about_dlg.text += 'MIT License<br>'
+            about_dlg.text += "Copyright © 2024 Michel 'Mitch' Pecqueur<br><br>"
+            about_dlg.url = 'https://github.com/robotmitchum/ir_tool'
+            about_dlg.setup_ui()
+            about_dlg.exec_()
+        except Exception as e:
+            print(e)
+            pass
+
+    @staticmethod
+    def visit_github():
+        url = 'https://github.com/robotmitchum/ir_tool'
+        qurl = QtCore.QUrl(url)
+        QtGui.QDesktopServices.openUrl(qurl)
+
 
 class RefToneDialog(QtWidgets.QFileDialog):
     def __init__(self, *args):
@@ -726,6 +856,51 @@ class FilePathLabel(QtWidgets.QLabel):
             event.ignore()
 
 
+class AboutDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(400, 160)
+        self.title = 'About'
+        self.text = ''
+        self.url = ''
+        self.icon_file = ''
+
+    def setup_ui(self):
+        self.setWindowTitle(self.title)
+
+        # Icon
+        self.icon_l = QtWidgets.QLabel()
+        if self.icon_file:
+            self.icon_pixmap = QtGui.QPixmap(self.icon_file)
+        else:
+            self.icon_pixmap = QtGui.QPixmap(64, 64)
+            self.icon_pixmap.fill(Qt.Qt.green)
+        self.icon_l.setPixmap(self.icon_pixmap)
+
+        # Message with clickable URL
+        self.msg_l = QtWidgets.QLabel()
+        self.msg_l.setTextFormat(Qt.Qt.RichText)
+        self.msg_l.setTextInteractionFlags(Qt.Qt.TextBrowserInteraction)
+        self.msg_l.setText(f'{self.text}<a href="{self.url}">{self.url}</a>')
+        self.msg_l.setAlignment(Qt.Qt.AlignLeft | Qt.Qt.AlignVCenter)
+        self.msg_l.linkActivated.connect(self.handle_link_clicked)
+
+        self.content_lyt = QtWidgets.QHBoxLayout()
+        self.content_lyt.addWidget(self.icon_l)
+        self.content_lyt.addWidget(self.msg_l)
+
+        # Main layout
+        self.lyt = QtWidgets.QVBoxLayout()
+        self.lyt.addLayout(self.content_lyt)
+        self.lyt.addStretch()
+
+        self.setLayout(self.lyt)
+
+    def handle_link_clicked(self, url: str):
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        self.accept()
+
+
 def replace_widget(old_widget, new_widget):
     """
     Replace a placeholder widget with another widget (typically a customised version of this widget)
@@ -813,19 +988,24 @@ def shorten_path(file_path, max_length=77):
     return '...' + file_path[-max_length:]
 
 
-def add_ctx(widget, values=(), names=None, trigger=None):
+def add_ctx(widget: QtWidgets.QWidget,
+            values: list = (), names: list | None = None, default_idx: int | None = None,
+            trigger: QtWidgets.QWidget | None = None):
     """
     Add a simple context menu setting provided values to the given widget
 
-    :param QtWidgets.QWidget widget: The widget to which the context menu will be added
-    :param list values: A list of values to be added as actions in the context menu
-    :param list or None names: A list of strings or values to be added as action names
+    :param widget: The widget to which the context menu will be added
+    :param values: A list of values to be added as actions in the context menu
+    :param default_idx:
+    :param names: A list of strings or values to be added as action names
     must match values length
-    :param QWidget or None trigger: Optional widget triggering the context menu
+    :param trigger: Optional QWidget triggering the context menu
     typically a QPushButton or QToolButton
     """
     if not names:
-        names = values
+        names = list(values)
+        if default_idx is not None:
+            names[default_idx] = f'{names[default_idx]} (Default)'
 
     def show_context_menu(event):
         menu = QtWidgets.QMenu(widget)
@@ -833,19 +1013,20 @@ def add_ctx(widget, values=(), names=None, trigger=None):
             if value == '---':
                 menu.addSeparator()
             else:
-                action = QtWidgets.QAction(f"{name}", widget)
+                action = menu.addAction(f'{name}')
                 if hasattr(widget, 'setValue'):
-                    action.triggered.connect(lambda checked, v=value: widget.setValue(v))
+                    action.triggered.connect(partial(widget.setValue, value))
                 elif hasattr(widget, 'setFullPath'):
-                    action.triggered.connect(lambda checked, v=value: widget.setFullPath(v))
+                    action.triggered.connect(partial(widget.setFullPath, value))
                 elif hasattr(widget, 'setText'):
-                    action.triggered.connect(lambda checked, v=value: widget.setText(v))
-                menu.addAction(action)
+                    action.triggered.connect(partial(widget.setText, value))
+
         pos = widget.mapToGlobal(widget.contentsRect().bottomLeft())
         menu.setMinimumWidth(widget.width())
         menu.exec_(pos)
+        menu.deleteLater()
 
-    widget.setContextMenuPolicy(3)
+    widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
     if trigger is None:
         widget.customContextMenuRequested.connect(show_context_menu)
     else:

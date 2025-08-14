@@ -11,8 +11,7 @@
    </rect>
   </property>
   <property name="font">
-   <font>
-   </font>
+   <font/>
   </property>
   <property name="windowTitle">
    <string>IR Tool</string>
@@ -67,6 +66,7 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_ref_tone_tb">
         <property name="font">
          <font>
+          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -187,6 +187,7 @@ Double-click to play</string>
        <widget class="QToolButton" name="set_files_tb">
         <property name="font">
          <font>
+          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -242,6 +243,7 @@ color: rgb(255, 255, 255);</string>
        <widget class="QToolButton" name="set_output_path_tb">
         <property name="font">
          <font>
+          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -376,7 +378,7 @@ color: rgb(255, 255, 255);</string>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_4">
       <item>
-       <widget class="QLabel" name="label">
+       <widget class="QLabel" name="bitdepth_l">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -420,7 +422,7 @@ color: rgb(255, 255, 255);</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_2">
+       <widget class="QLabel" name="format_l">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -488,73 +490,98 @@ Use wav or aif for 32 bits float</string>
        </widget>
       </item>
       <item>
-       <widget class="QComboBox" name="normalize_cmb">
+       <widget class="QWidget" name="normalize_wid" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="minimumSize">
-         <size>
-          <width>96</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string>peak : Normalize to given dB
-compensate : Modify IR volume so it does not change gain, 24 bits at least strongly recommanded</string>
-        </property>
-        <property name="currentIndex">
-         <number>1</number>
-        </property>
-        <property name="frame">
-         <bool>false</bool>
-        </property>
-        <item>
-         <property name="text">
-          <string>peak</string>
+        <layout class="QHBoxLayout" name="horizontalLayout_9">
+         <property name="spacing">
+          <number>0</number>
          </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>compensate</string>
+         <property name="leftMargin">
+          <number>0</number>
          </property>
-        </item>
-       </widget>
-      </item>
-      <item>
-       <widget class="QDoubleSpinBox" name="peak_db_dsb">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="acceptDrops">
-         <bool>false</bool>
-        </property>
-        <property name="toolTip">
-         <string>Peak value in dB</string>
-        </property>
-        <property name="frame">
-         <bool>false</bool>
-        </property>
-        <property name="readOnly">
-         <bool>false</bool>
-        </property>
-        <property name="buttonSymbols">
-         <enum>QAbstractSpinBox::NoButtons</enum>
-        </property>
-        <property name="minimum">
-         <double>-96.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>0.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>-0.500000000000000</double>
-        </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QComboBox" name="normalize_cmb">
+           <property name="minimumSize">
+            <size>
+             <width>96</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>peak	normalize to given dB
+
+compensate	volume compensation computed from the RMS volume of the IR applied to a frequency sweep
+			An optional amplification can be applied for softwares using a non-editable attenuation
+			24 bits at least strongly recommended</string>
+           </property>
+           <property name="currentIndex">
+            <number>1</number>
+           </property>
+           <property name="frame">
+            <bool>false</bool>
+           </property>
+           <item>
+            <property name="text">
+             <string>peak</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>compensate</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="normalize_amp_dsb">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="acceptDrops">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>peak	Peak volume in dB
+compensate	Amplification in dB</string>
+           </property>
+           <property name="frame">
+            <bool>false</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="readOnly">
+            <bool>false</bool>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="minimum">
+            <double>-96.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>12.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>
@@ -592,10 +619,13 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
          <bool>false</bool>
         </property>
         <property name="toolTip">
-         <string>Volume treshold (in dB) under which the end is trimmed to minimize file lentgth</string>
+         <string>Volume treshold (in dB) under which the end is trimmed to minimize file length</string>
         </property>
         <property name="frame">
          <bool>false</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
         </property>
         <property name="readOnly">
          <bool>false</bool>
@@ -655,6 +685,9 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
         </property>
         <property name="frame">
          <bool>false</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
         </property>
         <property name="readOnly">
          <bool>false</bool>
@@ -719,6 +752,7 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
         </property>
         <property name="font">
          <font>
+          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -743,8 +777,12 @@ compensate : Modify IR volume so it does not change gain, 24 bits at least stron
         </property>
         <property name="font">
          <font>
+          <weight>75</weight>
           <bold>true</bold>
          </font>
+        </property>
+        <property name="toolTip">
+         <string>Interrupt Process</string>
         </property>
         <property name="text">
          <string>Stop</string>
