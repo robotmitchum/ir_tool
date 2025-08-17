@@ -33,6 +33,7 @@ Finally, ref_tone.7z contains a bin/cue binary image of a Red Book Audio CD with
 
 You can burn this image and play it with a real Playstation hardware (whose CD Player and menus greatly varies depending
 on bios region and version) or directly use it with an emulator
+
 You need a backup copy of your Playstation BIOS to use with it with an emulator
 
 I used DuckStation with a SCPH-101 NTSC Bios image, DuckStation can directly log the audio output which is convenient
