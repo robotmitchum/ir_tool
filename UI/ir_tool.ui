@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>600</height>
+    <width>640</width>
+    <height>640</height>
    </rect>
   </property>
   <property name="font">
@@ -36,8 +36,7 @@
        </size>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-color: rgb(63, 95, 127);
-color: rgb(255, 255, 255);</string>
+       <string notr="true">background-color: rgb(63, 95, 127);color: rgb(255, 255, 255);</string>
       </property>
       <property name="text">
        <string>Reference Tone</string>
@@ -82,6 +81,9 @@ color: rgb(255, 255, 255);</string>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_7">
+      <property name="spacing">
+       <number>4</number>
+      </property>
       <item>
        <widget class="QPushButton" name="gen_sweep_pb">
         <property name="sizePolicy">
@@ -92,8 +94,8 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="minimumSize">
          <size>
-          <width>120</width>
-          <height>0</height>
+          <width>160</width>
+          <height>24</height>
          </size>
         </property>
         <property name="toolTip">
@@ -120,8 +122,8 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="minimumSize">
          <size>
-          <width>120</width>
-          <height>0</height>
+          <width>160</width>
+          <height>24</height>
          </size>
         </property>
         <property name="toolTip">
@@ -155,8 +157,7 @@ color: rgb(255, 255, 255);</string>
        </size>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-color: rgb(63, 95, 127);
-color: rgb(255, 255, 255);</string>
+       <string notr="true">background-color: rgb(63, 95, 127);color: rgb(255, 255, 255);</string>
       </property>
       <property name="text">
        <string>Input Files</string>
@@ -216,8 +217,7 @@ Double-click to play</string>
        </size>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-color: rgb(63, 95, 127);
-color: rgb(255, 255, 255);</string>
+       <string notr="true">background-color: rgb(63, 95, 127);color: rgb(255, 255, 255);</string>
       </property>
       <property name="text">
        <string>Output Path</string>
@@ -273,8 +273,7 @@ Process files in their respective directory if empty</string>
        </size>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-color: rgb(63, 95, 127);
-color: rgb(255, 255, 255);</string>
+       <string notr="true">background-color: rgb(63, 95, 127);color: rgb(255, 255, 255);</string>
       </property>
       <property name="text">
        <string>Settings</string>
@@ -722,22 +721,19 @@ compensate	Amplification in dB</string>
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_8">
-      <item>
-       <spacer name="horizontalSpacer_5">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="process_pb">
+     <widget class="Line" name="line">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QGridLayout" name="buttons_lyt">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QPushButton" name="process_sel_pb">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -747,7 +743,7 @@ compensate	Amplification in dB</string>
         <property name="minimumSize">
          <size>
           <width>160</width>
-          <height>0</height>
+          <height>32</height>
          </size>
         </property>
         <property name="font">
@@ -756,15 +752,18 @@ compensate	Amplification in dB</string>
           <bold>true</bold>
          </font>
         </property>
+        <property name="toolTip">
+         <string>Process selected item(s) with current settings</string>
+        </property>
         <property name="text">
-         <string>Process Files</string>
+         <string>Process Selected</string>
         </property>
         <property name="default">
          <bool>false</bool>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="0" column="1">
        <widget class="QPushButton" name="stop_pb">
         <property name="enabled">
          <bool>false</bool>
@@ -774,6 +773,12 @@ compensate	Amplification in dB</string>
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>160</width>
+          <height>32</height>
+         </size>
         </property>
         <property name="font">
          <font>
@@ -785,25 +790,46 @@ compensate	Amplification in dB</string>
          <string>Interrupt Process</string>
         </property>
         <property name="text">
-         <string>Stop</string>
+         <string>STOP</string>
         </property>
         <property name="default">
          <bool>false</bool>
         </property>
        </widget>
       </item>
-      <item>
-       <spacer name="horizontalSpacer_6">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+      <item row="1" column="0">
+       <widget class="QPushButton" name="process_pb">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
-        <property name="sizeHint" stdset="0">
+        <property name="minimumSize">
          <size>
-          <width>40</width>
-          <height>20</height>
+          <width>160</width>
+          <height>32</height>
          </size>
         </property>
-       </spacer>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="toolTip">
+         <string>Process all input files with current settings</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton{background-color: rgb(63, 95, 127);color: rgb(255, 255, 255);}</string>
+        </property>
+        <property name="text">
+         <string>Batch Process</string>
+        </property>
+        <property name="default">
+         <bool>false</bool>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

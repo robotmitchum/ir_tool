@@ -33,7 +33,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore, Qt
 from UI import ir_tool as gui
 from common_prefs_utils import Node, get_settings, set_settings, read_settings, write_settings
 from dark_fusion_style import apply_dark_theme
-from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end
+from deconvolve import deconvolve, generate_sweep, generate_impulse, db_to_lin, compensate_ir, trim_end, lerp
 from worker import Worker
 
 if getattr(sys, 'frozen', False):
@@ -87,6 +87,18 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.setup_connections()
         self.set_settings_path()
         self.last_file = self.output_path_l.fullPath() or self.ref_tone_path_l.fullPath()
+
+        # Style Buttons
+        style_widget(self.gen_sweep_pb, properties={'background-color': 'rgb(95,95,95)', 'border-radius': 4})
+        style_widget(self.gen_impulse_pb, properties={'background-color': 'rgb(95,95,95)', 'border-radius': 4})
+
+        style_widget(self.process_sel_pb, properties={'background-color': 'rgb(127,127,127)',
+                                                      'border-radius': 8})
+        style_widget(self.process_pb, properties={'background-color': 'rgb(63, 95, 127)',
+                                                  'border-radius': 8})
+        style_widget(self.stop_pb, properties={'background-color': 'rgb(127,79,95)',
+                                               'color': 'rgb(255,255,255)',
+                                               'border-radius': 8})
 
         self.progress_pb.setTextVisible(True)
         self.update_message(f'Batch deconvolve / process (trim/fade end, normalize) impulse responses')
@@ -144,7 +156,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         add_ctx(self.suffix_le, values=['_result', '_dc', '_trim', '_norm'])
 
         # Process button
-        self.process_pb.clicked.connect(partial(self.as_worker, self.do_deconvolve))
+        self.process_sel_pb.clicked.connect(partial(self.as_worker, partial(self.do_deconvolve, mode='sel')))
+        self.process_pb.clicked.connect(partial(self.as_worker, partial(self.do_deconvolve, mode='batch')))
         self.stop_pb.clicked.connect(self.stop_process)
 
         # Custom events
@@ -313,10 +326,13 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         return filepath
 
-    def do_deconvolve(self, worker, progress_callback, message_callback):
-        count = self.files_lw.count()
-        deconv = self.deconv_cb.isChecked()
+    def do_deconvolve(self, worker, progress_callback, message_callback, mode='batch'):
+        if mode == 'batch':
+            files = self.get_lw_items()
+        else:
+            files = self.get_sel_lw_items()
 
+        count = len(files)
         range_callback = worker.signals.progress_range
 
         if count < 1:
@@ -324,12 +340,16 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             message_callback.emit('No file(s) to process')
             return False
 
+        deconv = self.deconv_cb.isChecked()
+
         if deconv and not self.ref_tone_path_l.fullPath():
             progress_callback.emit(0)
             message_callback.emit('No reference tone provided')
             return False
 
+        # Toggle button states
         self.process_pb.setEnabled(False)
+        self.process_sel_pb.setEnabled(False)
         self.stop_pb.setEnabled(True)
 
         range_callback.emit(0, count)
@@ -337,9 +357,6 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         message_callback.emit('%p%')
 
         orig, orig_sr = sf.read(self.ref_tone_path_l.fullPath())
-
-        items = self.get_lw_items()
-        files = items
 
         trim_db, fade_db = None, None
         if self.trim_cb.isChecked():
@@ -387,9 +404,6 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             else:
                 ir = conv
 
-            mn_s = int(conv_sr * .25)
-            ir = trim_end(ir, trim_db=trim_db, fade_db=fade_db, min_silence=mn_s, min_length=None)
-
             if self.normalize_cb.isChecked():
                 amp = self.normalize_amp_dsb.value()
                 if self.normalize_cmb.currentText() == 'peak':
@@ -397,9 +411,12 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                 elif self.normalize_cmb.currentText() == 'compensate':
                     ir = compensate_ir(ir, mode='rms', sr=conv_sr)
                     # Amplification
-                    # Useful to compensate DS convolution built-in attenuation which appears to be -12 dB
+                    # Useful to compensate for Decent Sampler convolution attenuation which is -12 dB
                     if abs(amp) > 1e-3:
                         ir *= db_to_lin(amp)
+
+            mn_s = int(conv_sr * .25)
+            ir = trim_end(ir, trim_db=trim_db, fade_db=fade_db, min_silence=mn_s, min_length=None)
 
             # Soundfile only recognizes aiff and not aif when writing
             sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
@@ -421,7 +438,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         self.play_notification()
 
+        # Toggle button states
         self.process_pb.setEnabled(True)
+        self.process_sel_pb.setEnabled(True)
         self.stop_pb.setEnabled(False)
 
         return True
@@ -431,7 +450,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             if worker.running:
                 worker.request_stop()
 
+        # Toggle button states
         self.process_pb.setEnabled(True)
+        self.process_sel_pb.setEnabled(True)
         self.stop_pb.setEnabled(False)
 
     def browse_files(self):
@@ -469,8 +490,15 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def get_lw_items(self):
         return [self.files_lw.item(i).data(Qt.Qt.UserRole) for i in range(self.files_lw.count())]
 
+    def get_sel_lw_items(self):
+        return [item.data(Qt.Qt.UserRole) for item in self.files_lw.selectedItems()]
+
+    def del_lw_items(self):
+        for item in self.files_lw.selectedItems():
+            self.files_lw.takeItem(self.files_lw.row(item))
+
     def add_lw_items(self, files):
-        files = [os.path.normpath(f) for f in files]
+        files = [str(Path(f).resolve()) for f in files]
         files = list(dict.fromkeys(files))
         names = [shorten_path(f) for f in files]
 
@@ -491,11 +519,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                 item.setText(shorten_path(f))
             else:
                 self.files_lw.takeItem(self.files_lw.row(item))
-        self.files_lw.update()
-
-    def del_lw_items(self):
-        for item in self.files_lw.selectedItems():
-            self.files_lw.takeItem(self.files_lw.row(item))
+        self.files_lw.viewport().update()
 
     @staticmethod
     def play_lw_item(*args):
@@ -701,6 +725,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         QtGui.QDesktopServices.openUrl(qurl)
 
 
+# Auxiliary defs
 class RefToneDialog(QtWidgets.QFileDialog):
     def __init__(self, *args):
         super().__init__(*args)
@@ -901,11 +926,11 @@ class AboutDialog(QtWidgets.QDialog):
         self.accept()
 
 
-def replace_widget(old_widget, new_widget):
+def replace_widget(old_widget: QtWidgets.QWidget, new_widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
     """
     Replace a placeholder widget with another widget (typically a customised version of this widget)
-    :param QtWidgets.QWidget old_widget:
-    :param QtWidgets.QWidget new_widget:
+    :param old_widget:
+    :param new_widget:
     """
 
     attrs = ['objectName', 'parent', 'toolTip']
@@ -922,7 +947,73 @@ def replace_widget(old_widget, new_widget):
     return new_widget
 
 
-def get_user_directory(subdir='Documents'):
+# Stylesheet utils
+
+def dict_to_stylesheet(widget: str, properties: dict) -> str:
+    result = ('', f'{widget} {{')[bool(widget)]
+    for key, value in properties.items():
+        result += f'{key}: {value}; '
+    result = (result[:-1], result[:-1] + '}')[bool(widget)]
+    return result
+
+
+def get_text_color(widget: QtWidgets.QWidget) -> QtGui.QColor:
+    """Get most relevant text color"""
+    plt = widget.palette()
+    for role in [QtGui.QPalette.ButtonText, QtGui.QPalette.WindowText,
+                 QtGui.QPalette.Text, QtGui.QPalette.Foreground]:
+        color = plt.color(role)
+        if color.isValid():
+            return color
+    return QtGui.QColor(0, 0, 0)
+
+
+def style_widget(widget: any, properties: dict, clickable: bool = True):
+    """
+    Style a given widget using stylesheet creating derived colors for hover and disabled state
+    :param widget:
+    :param properties:
+    :param clickable: Create a clicked state (typically for buttons)
+    """
+    wid_class = widget.__class__.__name__
+
+    widget.show()  # Force color update
+    plt = widget.palette()
+
+    text_color = get_text_color(widget)
+    bg_color = plt.color(widget.backgroundRole())
+
+    properties['color'] = properties.get('color', text_color.name())
+    properties['background-color'] = properties.get('background-color', bg_color.name())
+
+    ss = dict_to_stylesheet(wid_class, properties)
+
+    widget.setStyleSheet(ss)
+    plt = widget.palette()
+    text_color = get_text_color(widget)
+    bg_color = plt.color(widget.backgroundRole())
+
+    # Calculate hover, disabled and pressed states from base color
+    text_rgb = np.array(bg_color.getRgb()[:3])
+    bg_rgb = np.array(bg_color.getRgb()[:3])
+    hover_bg_color = tuple(np.round(lerp(bg_rgb, 255, .3)).astype(np.uint8).tolist())
+
+    disabled_text_color = tuple(np.round(lerp(max(text_rgb), np.array([127] * 3), .3)).astype(np.uint8).tolist())
+    disabled_bg_color = tuple(
+        np.round(lerp(max(bg_rgb), np.array([max(bg_rgb) * .5] * 3), .3)).astype(np.uint8).tolist())
+
+    ss += f'\n{wid_class}:hover {{color: {text_color.name()}; background-color: rgb{hover_bg_color};}}'
+    ss += f'\n{wid_class}:disabled {{color: rgb{disabled_text_color}; background-color: rgb{disabled_bg_color};}}'
+
+    if clickable:
+        pressed_bg_color = tuple(np.round(lerp(bg_rgb, 127, .3)).astype(np.uint8).tolist())
+        ss += f'\n{wid_class}:pressed {{color: {text_color.name()}; background-color: rgb{pressed_bg_color};}}'
+
+    widget.setStyleSheet(ss)
+
+
+# Other utils
+def get_user_directory(subdir: str = 'Documents') -> Path:
     if sys.platform == 'win32':
         import winreg
 
@@ -956,15 +1047,15 @@ def get_user_directory(subdir='Documents'):
     return result
 
 
-def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True):
+def resolve_overwriting(input_path: str | Path, mode: str = 'dir', dir_name: str = 'backup_',
+                        do_move: bool = True) -> Path:
     """
     Move/rename given input file path if it already exists
-    :param str input_path:
-    :param str mode: 'file' or 'dir'
-    :param str dir_name: Directory name when using 'dir' mode
-    :param bool do_move: Execute move/rename operation otherwise only return new name
+    :param input_path:
+    :param mode: 'file' or 'dir'
+    :param dir_name: Directory name when using 'dir' mode
+    :param do_move: Execute move/rename operation otherwise only return new name
     :return:
-    :rtype: str
     """
     p = Path(input_path)
     parent, stem, ext = p.parent, p.stem, p.suffix
@@ -982,8 +1073,8 @@ def resolve_overwriting(input_path, mode='dir', dir_name='backup_', do_move=True
     return new_path
 
 
-def shorten_path(file_path, max_length=77):
-    if len(file_path) <= max_length:
+def shorten_path(file_path: str | Path, max_length: int = 77) -> str:
+    if len(str(file_path)) <= max_length:
         return file_path
     return '...' + file_path[-max_length:]
 
@@ -1033,15 +1124,14 @@ def add_ctx(widget: QtWidgets.QWidget,
         trigger.clicked.connect(show_context_menu)
 
 
-def resource_path(relative_path, as_str=True):
+def resource_path(relative_path: str | Path, as_str: bool = True) -> str | Path:
     """
     Get absolute path to resource, works for dev and for PyInstaller
     Modified from :
     https://stackoverflow.com/questions/31836104/pyinstaller-and-onefile-how-to-include-an-image-in-the-exe-file
-    :param str or WindowsPath relative_path:
-    :param bool as_str: Return result as a string
+    :param relative_path:
+    :param as_str: Return result as a string
     :return:
-    :rtype: str or Path
     """
     if hasattr(sys, '_MEIPASS'):
         base_path = Path(sys._MEIPASS)
