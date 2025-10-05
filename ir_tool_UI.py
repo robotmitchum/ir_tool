@@ -19,6 +19,7 @@ import ctypes
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from contextlib import suppress
 from functools import partial
@@ -705,14 +706,11 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     def about_dialog(self):
         try:
-            about_dlg = AboutDialog(parent=self)
-            about_dlg.icon_file = self.icon_file
-            about_dlg.title = f'About {self.tool_name}'
-            about_dlg.text = f'{self.tool_name}<br>Version {self.tool_version}<br><br>'
-            about_dlg.text += 'MIT License<br>'
-            about_dlg.text += "Copyright © 2024 Michel 'Mitch' Pecqueur<br><br>"
-            about_dlg.url = 'https://github.com/robotmitchum/ir_tool'
-            about_dlg.setup_ui()
+            about_dlg = AboutDialog(parent=self, title=f'About {self.tool_name}', icon_file=self.icon_file)
+            text = (f"{self.tool_name}\nVersion {self.tool_version}\n\nMIT License\n"
+                    f"Copyright © 2024 Michel 'Mitch' Pecqueur\n\n")
+            about_dlg.set_text(text)
+            about_dlg.append_url('https://github.com/robotmitchum/ir_tool')
             about_dlg.exec_()
         except Exception as e:
             print(e)
@@ -726,6 +724,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
 
 # Auxiliary defs
+
 class RefToneDialog(QtWidgets.QFileDialog):
     def __init__(self, *args):
         super().__init__(*args)
@@ -793,18 +792,24 @@ class RefToneDialog(QtWidgets.QFileDialog):
 
 
 class FilePathLabel(QtWidgets.QLabel):
+    pathChanged = QtCore.pyqtSignal(str)
+
     def __init__(self, text='', file_mode=False, parent=None):
         super().__init__(text, parent)
         self._full_path = ''
+        self._default_path = ''
+        self._placeholder_text = ''
+
         self._file_mode = file_mode
         self.display_length = 40
         self.start_dir = ''
         self.current_dir = os.path.dirname(sys.modules['__main__'].__file__)
         self.file_types = ['.wav', '.flac', '.aif']
-
-        # self.setStyleSheet('QLabel{color: #808080}')
+        self.dropped_items = []
 
         self.setAcceptDrops(True)
+
+        style_widget(self, properties={'color': 'gray'}, clickable=True)
 
     def fullPath(self):
         return self._full_path
@@ -816,17 +821,33 @@ class FilePathLabel(QtWidgets.QLabel):
         :return:
         """
         if path:
-            path = os.path.normpath(path)
             p = Path(path)
             if p.is_relative_to(self.current_dir):
-                path = str(p.relative_to(self.current_dir))
-            self.start_dir = (path, str(Path(path).parent))[self._file_mode]
+                p = p.relative_to(self.current_dir)
+            path = str(p.as_posix())
+            self.start_dir = (path, str(p.parent))[self._file_mode]
+            text = self.shorten_path(path or '')
+        else:
+            text = self._placeholder_text or ''
         self._full_path = path
-        self.setText(self.shorten_path(path))
+        self.setText(text)
+        self.pathChanged.emit(path)
 
     def validatePath(self):
         if not Path(self._full_path).exists():
             self.setFullPath('')
+
+    def setPlaceholderText(self, text):
+        self._placeholder_text = text
+        if not self._full_path:
+            self.setText(text)
+
+    def placeholderText(self):
+        return self._placeholder_text
+
+    def update_text(self):
+        if not self._full_path:
+            self.setText(self._placeholder_text)
 
     def shorten_path(self, path):
         if len(path) > self.display_length:
@@ -845,26 +866,25 @@ class FilePathLabel(QtWidgets.QLabel):
             path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory", self.start_dir)
 
         if path:
-            path = os.path.normpath(path)
             p = Path(path)
             if p.is_relative_to(self.current_dir):
-                path = str(p.relative_to(self.current_dir))
-            self.setFullPath(path)
+                p = p.relative_to(self.current_dir)
+            self.setFullPath(p)
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
             items = event.mimeData().urls()
-            items = [item.toLocalFile() for item in items]
+            items = [Path(item.toLocalFile()) for item in items]
+            self.dropped_items = items
             if self._file_mode:
-                items = [item for item in items if Path(item).is_file()]
+                items = [item for item in items if item.is_file()]
             else:
-                items = [item for item in items if Path(item).is_dir()]
+                items = [item if item.is_dir() else item.parent for item in items]
             if items:
-                path = os.path.normpath(items[0])
-                p = Path(path)
+                p = items[0]
                 if p.is_relative_to(self.current_dir):
-                    path = str(p.relative_to(self.current_dir))
-                self.setFullPath(path)
+                    p = p.relative_to(self.current_dir)
+                self.setFullPath(p)
         else:
             event.ignore()
 
@@ -880,46 +900,63 @@ class FilePathLabel(QtWidgets.QLabel):
         else:
             event.ignore()
 
+    def mouseDoubleClickEvent(self, event):
+        if self.fullPath():
+            p = Path(self.fullPath())
+            if Path(p).is_dir():
+                explore_directory(p)
+            elif Path(p).is_file():
+                explore_directory(p.parent)
+
 
 class AboutDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, title='About', icon_file=None):
         super().__init__(parent)
         self.setFixedSize(400, 160)
         self.title = 'About'
-        self.text = ''
-        self.url = ''
-        self.icon_file = ''
 
-    def setup_ui(self):
-        self.setWindowTitle(self.title)
+        self.setWindowTitle(title)
 
         # Icon
-        self.icon_l = QtWidgets.QLabel()
-        if self.icon_file:
-            self.icon_pixmap = QtGui.QPixmap(self.icon_file)
-        else:
-            self.icon_pixmap = QtGui.QPixmap(64, 64)
-            self.icon_pixmap.fill(Qt.Qt.green)
-        self.icon_l.setPixmap(self.icon_pixmap)
+        self.icon_l = QtWidgets.QLabel(self)
+        self.icon_pixmap = None
+        self.set_icon(icon_file)
 
         # Message with clickable URL
-        self.msg_l = QtWidgets.QLabel()
+        self.msg_l = QtWidgets.QLabel(self)
         self.msg_l.setTextFormat(Qt.Qt.RichText)
         self.msg_l.setTextInteractionFlags(Qt.Qt.TextBrowserInteraction)
-        self.msg_l.setText(f'{self.text}<a href="{self.url}">{self.url}</a>')
         self.msg_l.setAlignment(Qt.Qt.AlignLeft | Qt.Qt.AlignVCenter)
         self.msg_l.linkActivated.connect(self.handle_link_clicked)
 
+        # - Layout -
         self.content_lyt = QtWidgets.QHBoxLayout()
         self.content_lyt.addWidget(self.icon_l)
         self.content_lyt.addWidget(self.msg_l)
 
-        # Main layout
         self.lyt = QtWidgets.QVBoxLayout()
         self.lyt.addLayout(self.content_lyt)
         self.lyt.addStretch()
 
         self.setLayout(self.lyt)
+
+    def set_icon(self, icon_file=None):
+        if icon_file:
+            self.icon_pixmap = QtGui.QPixmap(str(icon_file))
+        else:
+            self.icon_pixmap = QtGui.QPixmap(64, 64)
+            self.icon_pixmap.fill(Qt.Qt.green)
+        self.icon_l.setPixmap(self.icon_pixmap)
+
+    def set_text(self, value, append=True):
+        v = value.replace('\n', '<br>')
+        if append:
+            self.msg_l.setText(self.msg_l.text() + v)
+        else:
+            self.msg_l.setText(v)
+
+    def append_url(self, value):
+        self.msg_l.setText(f'{self.msg_l.text()}<a href="{value}">{value}</a>')
 
     def handle_link_clicked(self, url: str):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
@@ -968,7 +1005,7 @@ def get_text_color(widget: QtWidgets.QWidget) -> QtGui.QColor:
     return QtGui.QColor(0, 0, 0)
 
 
-def style_widget(widget: any, properties: dict, clickable: bool = True):
+def style_widget(widget: QtWidgets.QWidget, properties: dict, clickable: bool = True):
     """
     Style a given widget using stylesheet creating derived colors for hover and disabled state
     :param widget:
@@ -977,16 +1014,33 @@ def style_widget(widget: any, properties: dict, clickable: bool = True):
     """
     wid_class = widget.__class__.__name__
 
+    enabled = widget.isEnabled()
+    widget.setEnabled(True)  # Enable widget to capture properly its original palette
+
     widget.show()  # Force color update
     plt = widget.palette()
 
     text_color = get_text_color(widget)
     bg_color = plt.color(widget.backgroundRole())
+    # bg_alpha = bg_color.alpha()
 
-    properties['color'] = properties.get('color', text_color.name())
-    properties['background-color'] = properties.get('background-color', bg_color.name())
+    prop = dict(properties)
+    prop['color'] = properties.get('color', text_color.name())
 
-    ss = dict_to_stylesheet(wid_class, properties)
+    ss = widget.styleSheet()
+
+    bg_transparent = False
+    if isinstance(widget, QtWidgets.QLabel) and not ss:
+        bg_transparent = True
+    elif 'background-color:transparent' in ss.replace(' ', '').lower():
+        bg_transparent = True
+
+    if bg_transparent:
+        prop['background-color'] = 'transparent'
+    else:
+        prop['background-color'] = properties.get('background-color', bg_color.name())
+
+    ss = dict_to_stylesheet(wid_class, prop)
 
     widget.setStyleSheet(ss)
     plt = widget.palette()
@@ -994,20 +1048,32 @@ def style_widget(widget: any, properties: dict, clickable: bool = True):
     bg_color = plt.color(widget.backgroundRole())
 
     # Calculate hover, disabled and pressed states from base color
-    text_rgb = np.array(bg_color.getRgb()[:3])
+    text_rgb = np.array(text_color.getRgb()[:3])
     bg_rgb = np.array(bg_color.getRgb()[:3])
+
+    # Hover: original color mixed with white
+    hover_text_color = tuple(np.round(lerp(text_rgb, 255, .3)).astype(np.uint8).tolist())
     hover_bg_color = tuple(np.round(lerp(bg_rgb, 255, .3)).astype(np.uint8).tolist())
 
-    disabled_text_color = tuple(np.round(lerp(max(text_rgb), np.array([127] * 3), .3)).astype(np.uint8).tolist())
+    # Disabled : original color converted to luminance mixed with dark gray
+    disabled_text_color = tuple(
+        np.round(lerp(np.max(text_rgb).repeat(3, ), 63, .5)).astype(np.uint8).tolist())
     disabled_bg_color = tuple(
-        np.round(lerp(max(bg_rgb), np.array([max(bg_rgb) * .5] * 3), .3)).astype(np.uint8).tolist())
+        np.round(lerp(np.max(bg_rgb).repeat(3), 63, .5)).astype(np.uint8).tolist())
 
-    ss += f'\n{wid_class}:hover {{color: {text_color.name()}; background-color: rgb{hover_bg_color};}}'
-    ss += f'\n{wid_class}:disabled {{color: rgb{disabled_text_color}; background-color: rgb{disabled_bg_color};}}'
+    ss += f'\n{wid_class}:hover {{color: rgb{hover_text_color};'
+    ss += (f' background-color: rgb{hover_bg_color};}}', '}')[bg_transparent]
+
+    ss += f'\n{wid_class}:disabled {{color: rgb{disabled_text_color};'
+    ss += (f' background-color: rgb{disabled_bg_color};}}', '}')[bg_transparent]
 
     if clickable:
+        # Pressed : original color mixed with middle gray
         pressed_bg_color = tuple(np.round(lerp(bg_rgb, 127, .3)).astype(np.uint8).tolist())
-        ss += f'\n{wid_class}:pressed {{color: {text_color.name()}; background-color: rgb{pressed_bg_color};}}'
+        ss += f'\n{wid_class}:pressed {{color: {text_color.name()};'
+        ss += (f' background-color: rgb{pressed_bg_color};}}', '}')[bg_transparent]
+
+    widget.setEnabled(enabled)  # Set widget to its original state
 
     widget.setStyleSheet(ss)
 
@@ -1044,7 +1110,23 @@ def get_user_directory(subdir: str = 'Documents') -> Path:
     else:
         result = Path.home() / subdir
 
-    return result
+    return Path(result)
+
+
+def explore_directory(path: Path | str = ''):
+    """Open system file explorer"""
+    match sys.platform:
+        case 'win32':
+            os.startfile(str(path))
+            # subprocess.Popen(['start', str(path)], shell=True)
+        case 'darwin':
+            subprocess.Popen(['open', str(path)])
+        case _:
+            try:
+                subprocess.Popen(['xdg-open', str(path)])
+            except OSError as e:
+                print(e)
+                pass
 
 
 def resolve_overwriting(input_path: str | Path, mode: str = 'dir', dir_name: str = 'backup_',
