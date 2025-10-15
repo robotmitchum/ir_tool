@@ -265,7 +265,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         # Soundfile only recognizes aiff and not aif when writing
         sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
-        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth], compression_level=1.0)
+        cmp = ({}, {'compression_level': 1.0})[ext == 'flac']
+        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth], **cmp)
         if str(sf_path) != filepath:
             os.rename(sf_path, filepath)
 
@@ -318,7 +319,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         # Soundfile only recognizes aiff and not aif when writing
         sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
-        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth], compression_level=1.0)
+        cmp = ({}, {'compression_level': 1.0})[ext == 'flac']
+        sf.write(str(sf_path), data, sr, subtype=subtypes[bit_depth], **cmp)
         if str(sf_path) != filepath:
             os.rename(sf_path, filepath)
 
@@ -422,7 +424,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             # Soundfile only recognizes aiff and not aif when writing
             sf_path = (filepath, filepath.with_suffix('.aiff'))[ext == 'aif']
             try:
-                sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth], compression_level=1.0)
+                cmp = ({}, {'compression_level': 1.0})[ext == 'flac']
+                sf.write(str(sf_path), ir, conv_sr, subtype=subtypes[bit_depth], **cmp)
                 if sf_path != filepath:
                     os.rename(sf_path, filepath)
                 done += 1

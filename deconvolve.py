@@ -12,17 +12,16 @@ import numpy as np
 from numpy.fft import fft, ifft
 
 
-def deconvolve(audio, reference, lambd=1e-3, mode='minmax_sum'):
+def deconvolve(audio: np.ndarray, reference: np.ndarray, lambd: float = 1e-3, mode: str = 'minmax_sum') -> np.ndarray:
     """
     Deconvolve audio from a reference sound (typically a sweep) to an impulse response
 
-    :param numpy.ndarray audio: Convolved audio
-    :param numpy.ndarray reference: Reference audio
-    :param float lambd: Peak signal-to-noise ratio
-    :param str mode: Match length mode between audio and ref, "min", "max" or 'minmax_sum' (to alleviate wrap-around)
+    :param audio: Convolved audio
+    :param reference: Reference audio
+    :param lambd: Peak signal-to-noise ratio
+    :param mode: Match length mode between audio and ref, "min", "max" or 'minmax_sum' (to alleviate wrap-around)
 
     :return: Resulting IR
-    :rtype: numpy.ndarray
     """
     au_nch, ref_nch = audio.ndim, reference.ndim
 
@@ -54,6 +53,8 @@ def deconvolve(audio, reference, lambd=1e-3, mode='minmax_sum'):
         # Wiener Deconvolution
         # Taken fom "Example of Wiener deconvolution in Python"
         # Written 2015 by Dan Stowell. Public domain.
+        # https://gist.github.com/danstowell/f2d81a897df9e23cc1da
+
         fft_k = fft(kernel)
         deconv = np.real(ifft(fft(conv_data) * np.conj(fft_k) / (fft_k * np.conj(fft_k) + lambd ** 2)))[:length]
 
@@ -65,14 +66,13 @@ def deconvolve(audio, reference, lambd=1e-3, mode='minmax_sum'):
     return result
 
 
-def compensate_ir(audio, mode='rms', sr=48000):
+def compensate_ir(audio: np.ndarray, mode: str = 'rms', sr: int = 48000) -> np.ndarray:
     """
     Compensate impulse response volume so convolved audio keeps approximately the same gain as original
-    :param numpy.ndarray audio: Input impulse response
-    :param str mode: Normalization mode, 'peak' or 'rms'
-    :param int sr: Sampling rate
+    :param audio: Input impulse response
+    :param mode: Normalization mode, 'peak' or 'rms'
+    :param sr: Sampling rate
     :return: processed IR
-    :rtype: numpy.ndarray
     """
     nch = audio.ndim
     length = len(audio)
@@ -97,17 +97,17 @@ def compensate_ir(audio, mode='rms', sr=48000):
     return audio * gain
 
 
-def generate_sweep(duration=4, sr=48000, db=-6, start_freq=20, window=True, os=1):
+def generate_sweep(duration: float = 4, sr: int = 48000, db: float = -6, start_freq: float = 20, window: bool = True,
+                   os: int = 1):
     """
     Generate logarithmic sweep tone
-    :param float duration: in seconds
-    :param int sr: Sample Rate
-    :param float db: Volume
-    :param float start_freq: in Hz
-    :param bool window: Apply Tukey window
-    :param int os: Oversampling factor
+    :param duration: in seconds
+    :param sr: Sample Rate
+    :param db: Volume
+    :param start_freq: in Hz
+    :param window: Apply Tukey window
+    :param os: Oversampling factor
     :return: Generated audio
-    :rtype: numpy.ndarray
     """
     length = int(duration * sr)
     end_freq = sr / 2
@@ -135,23 +135,25 @@ def generate_sweep(duration=4, sr=48000, db=-6, start_freq=20, window=True, os=1
     return sweep
 
 
-def generate_impulse(duration=4, sr=48000, db=-0.5):
+def generate_impulse(duration: float = 4, sr: int = 48000, db: float = -0.5) -> np.ndarray:
+    """
+    Generate an impulse click
+    """
     length = int(duration * sr)
     impulse = np.zeros(length)
     impulse[1] = db_to_lin(db)
     return impulse
 
 
-def convolve(audio, ir, comp_ir=True, wet=1.0, sr=48000):
+def convolve(audio: np.ndarray, ir: np.ndarray, comp_ir: bool = True, wet: float = 1.0, sr: int = 48000) -> np.ndarray:
     """
     Convolve input audio with an impulse response
-    :param numpy.ndarray audio: Input audio
-    :param numpy.ndarray ir: Impulse response
-    :param bool comp_ir: Compensate IR gain
-    :param float wet: Blend between processed and original audio
-    :param int sr: Sample Rate
+    :param audio: Input audio
+    :param ir: Impulse response
+    :param comp_ir: Compensate IR gain
+    :param wet: Blend between processed and original audio
+    :param sr: Sample Rate
     :return: Processed audio
-    :rtype: numpy.ndarray
     """
     au_nch, ir_nch = audio.ndim, ir.ndim
     au_l, ir_l = len(audio), len(ir)
@@ -191,16 +193,16 @@ def convolve(audio, ir, comp_ir=True, wet=1.0, sr=48000):
     return result
 
 
-def trim_end(data, trim_db=-120, fade_db=-96, min_silence=512, min_length=None):
+def trim_end(data: np.ndarray, trim_db: float = -120, fade_db: float = -96, min_silence: int | None = 512,
+             min_length: int | None = None) -> np.ndarray:
     """
     Remove trailing silence
-    :param numpy.ndarray data: Input audio
-    :param float or None trim_db: Silence threshold in dB
-    :param float or None fade_db: Fade threshold in dB, value should be higher than trim_db
-    :param int or None min_silence: Minimum silence length in samples for 1st pass
-    :param int or None min_length: Minimum length in samples
+    :param data: Input audio
+    :param trim_db: Silence threshold in dB
+    :param fade_db: Fade threshold in dB, value should be higher than trim_db
+    :param min_silence: Minimum silence length in samples for 1st pass
+    :param min_length: Minimum length in samples
     :return: processed audio
-    :rtype: numpy.ndarray
     """
     if trim_db is None:
         return data
@@ -258,18 +260,18 @@ def trim_end(data, trim_db=-120, fade_db=-96, min_silence=512, min_length=None):
     return data
 
 
-def half_cosine(x):
+def half_cosine(x: np.ndarray) -> np.ndarray:
     return 0.5 - 0.5 * np.cos(np.pi * x)
 
 
-def sweep_window(length, fade=512):
+def sweep_window(length: int, fade: int = 512) -> np.ndarray:
     f_l = min(fade, length // 2)
     x = half_cosine(np.linspace(0, 1, f_l))
     result = np.concatenate([x, np.ones(length - 2 * f_l), x[::-1]])
     return result
 
 
-def freq_to_period(f, sr=48000):
+def freq_to_period(f: float | np.ndarray, sr: int = 48000) -> int | np.ndarray:
     return np.round(sr / np.array(f)).astype(np.int16)
 
 
@@ -293,26 +295,24 @@ def peak(x):
     return np.max(np.abs(x))
 
 
-def np_log(array):
+def np_log(array: np.ndarray) -> np.ndarray:
     """
     Pseudo log function for fades
-    :param numpy.ndarray array:
+    :param array:
     :return:
-    :rtype: numpy.ndarray
     """
     return np.subtract(1, np.subtract(1, array) ** 4)
 
 
 # Numpy implementations of scipy.signal functions
 
-def np_fftconvolve(a, b, mode='full'):
+def np_fftconvolve(a: np.ndarray, b: np.ndarray, mode: str = 'full') -> np.ndarray:
     """
     Perform fft convolution of array a by array b
-    :param numpy.ndarray a:
-    :param numpy.ndarray b:
-    :param str mode: 'full', 'same' or 'valid'
+    :param a:
+    :param b:
+    :param mode: 'full', 'same' or 'valid'
     :return: Convolved result
-    :rtype: numpy.ndarray
     """
     n = a.size + b.size - 1
     a_fft = fft(a, n=n)
@@ -333,14 +333,13 @@ def np_fftconvolve(a, b, mode='full'):
             raise ValueError("mode must be 'full', 'same', or 'valid'")
 
 
-def np_decimate(x, q, n=None):
+def np_decimate(x: np.ndarray, q: int, n: int | None = None) -> np.ndarray:
     """
     Decimate x by an integer factor q using a simple low-pass filter.
-    :param numpy.ndarray x: input signal
-    :param int q: Decimate factor
-    :param int or None n: moving average filter size, default is 8 times decimate factor
+    :param x: input signal
+    :param  q: Decimate factor
+    :param n: moving average filter size, default is 8 times decimate factor
     :return: Decimated result
-    :rtype: numpy.ndarray
     """
     if n is None:
         n = 8 * q
