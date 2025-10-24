@@ -913,12 +913,11 @@ class FilePathLabel(QtWidgets.QLabel):
 
 
 class AboutDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, title='About', icon_file=None):
+    def __init__(self, parent: QtWidgets.QWidget = None, title: str = 'About', icon_file: Path | str | None = None):
         super().__init__(parent)
-        self.setFixedSize(400, 160)
-        self.title = 'About'
-
-        self.setWindowTitle(title)
+        self.setSizePolicy(Qt.QSizePolicy.Minimum, Qt.QSizePolicy.Minimum)
+        self.setFixedSize(0, 0)
+        self.setWindowTitle(title or 'About')
 
         # Icon
         self.icon_l = QtWidgets.QLabel(self)
@@ -939,11 +938,11 @@ class AboutDialog(QtWidgets.QDialog):
 
         self.lyt = QtWidgets.QVBoxLayout()
         self.lyt.addLayout(self.content_lyt)
-        self.lyt.addStretch()
+        # self.lyt.addStretch()
 
         self.setLayout(self.lyt)
 
-    def set_icon(self, icon_file=None):
+    def set_icon(self, icon_file: Path | str | None = None):
         if icon_file:
             self.icon_pixmap = QtGui.QPixmap(str(icon_file))
         else:
@@ -951,15 +950,16 @@ class AboutDialog(QtWidgets.QDialog):
             self.icon_pixmap.fill(Qt.Qt.green)
         self.icon_l.setPixmap(self.icon_pixmap)
 
-    def set_text(self, value, append=True):
+    def set_text(self, value: str, append: bool = True):
         v = value.replace('\n', '<br>')
         if append:
             self.msg_l.setText(self.msg_l.text() + v)
         else:
             self.msg_l.setText(v)
 
-    def append_url(self, value):
-        self.msg_l.setText(f'{self.msg_l.text()}<a href="{value}">{value}</a>')
+    def append_url(self, value: str, end_line: str = '\n'):
+        v = end_line.replace('\n', '<br>')
+        self.msg_l.setText(f'{self.msg_l.text()}<a href="{value}">{value}</a>' + v)
 
     def handle_link_clicked(self, url: str):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
