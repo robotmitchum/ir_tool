@@ -18,7 +18,6 @@
 import ctypes
 import os
 import platform
-import platformdirs
 import shutil
 import subprocess
 import sys
@@ -28,6 +27,7 @@ from pathlib import Path
 from typing import cast
 
 import numpy as np
+import platformdirs
 import sounddevice as sd
 import soundfile as sf
 from PyQt5 import QtWidgets, QtGui, QtCore, Qt
