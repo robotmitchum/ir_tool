@@ -1,0 +1,33 @@
+{
+  "--name": "ir_tool_UI",
+  "--workpath": "build",
+  "--distpath": "dist",
+  "--icon": {
+    "Windows": "UI/ir_tool.ico",
+    "Linux": "UI/ir_tool_64.png",
+    "Darwin": null
+  },
+  "--splash": "UI/ir_tool_splash.png",
+  "--onefile": true,
+  "--noconfirm": true,
+  "--noconsole": true,
+  "--add-data": [
+    "*.py:.",
+    "process_complete.flac:.",
+    "UI:UI/"
+  ],
+  "--hidden-import": [
+    ""
+  ],
+  "--exclude": [
+    {
+      "Windows": "tkinter"
+    },
+    "matplotlib"
+  ],
+  "--optimize": 2,
+  "--version-file": {
+    "Windows": "ir_tool_UI_version.txt"
+  },
+  "--noupx": false
+}

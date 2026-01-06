@@ -1,3 +1,3 @@
-/output/
-/ir_tool_UI_version.txt
 __pycache__/
+/.venv/
+/dist/
