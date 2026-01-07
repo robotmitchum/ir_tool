@@ -7,7 +7,11 @@
     "Darwin": "UI/ir_tool.icns",
     "Linux": null
   },
-  "--splash": "UI/ir_tool_splash.png",
+  "--splash": {
+    "Windows": "tools/UI/icons/sample_tools_splash.png",
+    "Darwin": null,
+    "Linux": "tools/UI/icons/sample_tools_splash.png"
+  },
   "--onefile": true,
   "--noconfirm": true,
   "--noconsole": true,
@@ -21,11 +25,13 @@
   ],
   "--exclude": [
     "tkinter",
-    "matplotlib"
+    "matplotlib",
+    "pip",
+    "pyinstaller"
   ],
   "--optimize": 2,
   "--version-file": {
     "Windows": "ir_tool_UI_version.txt"
   },
-  "--noupx": false
+  "--noupx": true
 }

@@ -12,13 +12,15 @@ import traceback
 from pathlib import Path
 
 
-def install_desktop(exe_path: Path, icon_file: Path | None = None, app_name: str | None = None, comment:str | None = None) -> Path:
+def install_desktop(exe_path: Path, icon_file: Path | None = None, app_name: str | None = None,
+                    comment: str | None = None) -> Path:
     """
     Create desktop file and copy supplied icon
 
     :param exe_path: Full path to the executable
     :param app_name: Application Name
     :param icon_file: .png icon file
+    :param comment: Optional comment
 
     :return: Path to created desktop file
     """

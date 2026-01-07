@@ -4,3 +4,4 @@ PyQt5_sip==12.16.1
 sounddevice==0.5.1
 soundfile==0.13.1
 platformdirs==4.5.1
+pyinstaller==6.17.0
