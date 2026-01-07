@@ -8,9 +8,9 @@
     "Linux": null
   },
   "--splash": {
-    "Windows": "UI/icons/ir_tool_splash.png",
+    "Windows": "UI/ir_tool_splash.png",
     "Darwin": null,
-    "Linux": "UI/icons/ir_tool_splash.png"
+    "Linux": "UI/ir_tool_splash.png"
   },
   "--onefile": true,
   "--noconfirm": true,
