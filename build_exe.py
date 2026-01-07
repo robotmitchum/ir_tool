@@ -79,7 +79,7 @@ def build_exe(scriptname: Path | str = '', config_path: Path | str = 'build_conf
     if result.returncode == 0:
         # Clean build directory and spec file after process
         shutil.rmtree('build', ignore_errors=True)
-        spec_file = Path(scriptname).with_suffix('.spec')
+        spec_file = Path(scriptname).parent / f'{data['--name']}.spec'
         spec_file.unlink(missing_ok=True)
 
         result = Path(config_path).parent / f'{data['--distpath']}/{data['--name']}'
