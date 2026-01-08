@@ -37,6 +37,7 @@ Open a terminal from a directory of your choice
 git clone https://github.com/robotmitchum/ir_tool.git
 cd ir_tool
 python3 -m venv .venv
+source .venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
@@ -46,6 +47,7 @@ pip3 install -r requirements.txt
 git clone https://github.com/robotmitchum/ir_tool.git
 cd ir_tool
 python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
