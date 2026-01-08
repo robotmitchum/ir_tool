@@ -59,14 +59,14 @@ Open a terminal from the cloned project directory
 
 ```
 source .venv/bin/activate
-python3 -m ir_tool_UI.py
+python3 -m ir_tool_UI
 ```
 
 #### Windows
 
 ```
 .venv\Scripts\activate
-python -m ir_tool_UI.py
+python -m ir_tool_UI
 ```
 
 ### Or build a native executable
