@@ -20,38 +20,125 @@ This project was developed and tested with Python 3.12.8
 
 Additional required packages :
 
-* PyQt5
-* numpy
-* soundfile
-* sounddevice
+- PyQt5
+- numpy
+- PyQt5_sip
+- soundfile
+- sounddevice
+- platformdirs
 
-Clone repository and install required packages
+Clone repository, create venv and install the required packages
+
+Open a terminal from a directory of your choice
+
+#### Linux and macOS
 
 ```
 git clone https://github.com/robotmitchum/ir_tool.git
 cd ir_tool
-pip install -r requirements.txt
-```
-
-or on MacOs
-
-```
+python3 -m venv .venv
 pip3 install -r requirements.txt
 ```
 
-## Usage
-
-Execute ir_tool_UI.py
+#### Windows
 
 ```
-python ir_tool_UI.py
+git clone https://github.com/robotmitchum/ir_tool.git
+cd ir_tool
+python -m venv .venv
+pip install -r requirements.txt
 ```
 
-or on MacOs
+### Execute ir_tool_UI.py
+
+Open a terminal from the cloned project directory
+
+#### Linux and macOS
 
 ```
-python3 ir_tool_UI.py
+source .venv/bin/activate
+python3 -m ir_tool_UI.py
 ```
+
+#### Windows
+
+```
+.venv\Scripts\activate
+python -m ir_tool_UI.py
+```
+
+### Or build a native executable
+
+A build procedure is provided with this package<br/>
+
+The build_exe script runs a Python helper that reads a .json config describing the PyInstaller options<br/>
+This allows keeping build settings editable and cross-platform<br/>
+
+Open a terminal from the cloned project directory
+
+#### Linux and macOS
+
+Install pyinstaller package<br>
+_(if you installed the project using requirements.txt you can skip this step, pyinstaller is already there)_
+
+```
+source .venv/bin/activate
+pip3 install pyinstaller
+```
+
+Build the executable with pyinstaller
+
+```
+chmod +x build_exe.sh
+./build_exe.sh
+```
+
+#### Windows
+
+Install pyinstaller package<br>
+_(if you installed the project using requirements.txt you can skip this step, pyinstaller is already there)_
+
+```
+.venv\scripts\activate
+pip install pyinstaller
+```
+
+Build the executable with pyinstaller
+
+Simply double-click on **build_exe.cmd** or type
+
+```
+build_exe.cmd
+```
+
+Let the process cook...<br/>
+
+When completed, the executable will be found in the **dist** subdirectory<br/>
+
+Copy the built executable to a directory called **ir_tool** in a location of your choice<br/>
+
+- Linux : I recommend _~/user_name/opt_
+- macOS : In your _Applications_ folder
+- Windows : typically in _C:/Program Files_ or in your user directory
+
+Copy the following files and directories to the executable location :
+
+- sweep_tone.wav _(default 4 seconds sweep tone at 48 Khz and in floating point format you can use for recording)_
+- deconvolution_examples _(optional but neat to test if everything is working)_
+
+### Install desktop (Linux only)
+
+This assumes the executable is located in *~/user_name/opt/sample_tools* or the bash script won't work<br/>
+
+From the cloned project directory
+
+```
+source .venv/bin/activate
+chmod +x install_desktop.sh
+./build_exe.sh
+```
+
+## Features
 
 File and directory fields support drag and drop
 
