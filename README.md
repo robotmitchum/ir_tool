@@ -14,9 +14,10 @@ Supports wav, flac and aif formats for input and output
 
 ## Installation
 
-**For Windows users, an executable is available on this page, you don't need to install Python to use it**
+**For Windows and Linux users, a prebuilt executable is available in the releases<br/>
+You don't need to install Python to use it<br/>**
 
-This project was developed and tested with Python 3.12.8
+This project was developed and tested with Python 3.12.10
 
 Additional required packages :
 
