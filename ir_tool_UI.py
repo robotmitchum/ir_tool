@@ -49,11 +49,17 @@ from __init__ import __version__
 class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
+        self.setupUi(self)
 
         self.current_dir = Path(__file__).parent
         self.base_dir = self.current_dir.parent
 
-        self.setupUi(self)
+        if getattr(sys, 'frozen', False):
+            self.app_dir = Path(sys.executable).parent
+        else:
+            self.app_dir = self.current_dir
+        os.chdir(self.app_dir)
+
         self.tool_name = 'IR Tool'
         self.tool_version = __version__
         self.icon_file = resource_path(self.current_dir / 'UI/ir_tool_64.png')
@@ -109,9 +115,11 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     def setup_connections(self):
         # Ref tone widgets
-        self.ref_tone_path_l = replace_widget(self.ref_tone_path_l, FilePathLabel(file_mode=True, parent=self))
+        self.ref_tone_path_l = replace_widget(self.ref_tone_path_l,
+                                              FilePathLabel(app_dir=self.app_dir, file_mode=True, parent=self))
         add_ctx(self.ref_tone_path_l, values=[''], names=['Clear'])
-        self.ref_tone_path_l.setFullPath(resource_path('sweep_tone.wav'))
+
+        self.ref_tone_path_l.setFullPath(resource_path(self.app_dir / 'sweep_tone.wav'))
         self.ref_tone_path_l.validatePath()
 
         self.set_ref_tone_tb.clicked.connect(self.ref_tone_path_l.browse_path)
@@ -127,7 +135,8 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.files_lw.doubleClicked.connect(self.play_lw_item)
 
         # Output path widgets
-        self.output_path_l = replace_widget(self.output_path_l, FilePathLabel(file_mode=False, parent=self))
+        self.output_path_l = replace_widget(self.output_path_l,
+                                            FilePathLabel(app_dir=self.app_dir, file_mode=False, parent=self))
         default_dir = get_user_directory()
         desktop_dir = get_user_directory('Desktop')
         add_ctx(self.output_path_l, values=['', default_dir, desktop_dir],
@@ -798,7 +807,7 @@ class RefToneDialog(QtWidgets.QFileDialog):
 class FilePathLabel(QtWidgets.QLabel):
     pathChanged = QtCore.pyqtSignal(str)
 
-    def __init__(self, text='', file_mode=False, parent=None):
+    def __init__(self, text: str = '', app_dir: Path | str | None = None, file_mode: bool = False, parent=None):
         super().__init__(text, parent)
         self._full_path = ''
         self._default_path = ''
@@ -807,7 +816,12 @@ class FilePathLabel(QtWidgets.QLabel):
         self._file_mode = file_mode
         self.display_length = 40
         self.start_dir = ''
-        self.current_dir = os.path.dirname(sys.modules['__main__'].__file__)
+
+        if app_dir is not None:
+            self.app_dir = Path(app_dir)
+        else:
+            self.app_dir = Path(sys.modules['__main__'].__file__).parent
+
         self.file_types = ['.wav', '.flac', '.aif']
         self.dropped_items = []
 
@@ -826,11 +840,11 @@ class FilePathLabel(QtWidgets.QLabel):
         """
         if path:
             p = Path(path)
-            if p.is_relative_to(self.current_dir):
-                p = p.relative_to(self.current_dir)
             path = str(p.as_posix())
             self.start_dir = (path, str(p.parent))[self._file_mode]
-            text = self.shorten_path(path or '')
+            if p.is_relative_to(self.app_dir):
+                p = p.relative_to(self.app_dir)
+            text = self.shorten_path(p.as_posix() or '')
         else:
             text = self._placeholder_text or ''
         self._full_path = path
@@ -871,8 +885,6 @@ class FilePathLabel(QtWidgets.QLabel):
 
         if path:
             p = Path(path)
-            if p.is_relative_to(self.current_dir):
-                p = p.relative_to(self.current_dir)
             self.setFullPath(p)
 
     def dropEvent(self, event):
@@ -886,8 +898,6 @@ class FilePathLabel(QtWidgets.QLabel):
                 items = [item if item.is_dir() else item.parent for item in items]
             if items:
                 p = items[0]
-                if p.is_relative_to(self.current_dir):
-                    p = p.relative_to(self.current_dir)
                 self.setFullPath(p)
         else:
             event.ignore()
