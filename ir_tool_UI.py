@@ -52,7 +52,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.setupUi(self)
 
         self.current_dir = Path(__file__).parent
-        self.base_dir = self.current_dir.parent
+        self.base_dir = self.current_dir
 
         if getattr(sys, 'frozen', False):
             if platform.system() == 'Darwin':
@@ -62,7 +62,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             else:
                 self.app_dir = Path(sys.executable).parent
         else:
-            self.app_dir = self.current_dir
+            self.app_dir = self.base_dir
         os.chdir(self.app_dir)
 
         self.tool_name = 'IR Tool'
