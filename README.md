@@ -23,7 +23,6 @@ Additional required packages :
 
 - PyQt5
 - numpy
-- PyQt5_sip
 - soundfile
 - sounddevice
 - platformdirs
