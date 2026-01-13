@@ -118,22 +118,25 @@ build_exe.cmd
 
 Let the process cook...<br/>
 
-When completed, the executable will be found in the **dist** subdirectory<br/>
+When completed, the executable will be found in the `dist/ir_tool` subdirectory<br/>
 
-Copy the built executable to a directory called **ir_tool** in a location of your choice<br/>
+The following assets should also be bundled in `ir_tool` :
+
+- sweep_tone.wav _(default 4 seconds sweep tone at 48 Khz and in floating point format you can use for recording)_
+- deconvolution_examples _(optional but neat to test if everything is working)_
+
+An archive of the `ir_tool` directory will also be found in `dist` - this is the same file I release on this page in `releases`</br>
+If you don't need it, it can be safely deleted
+
+Copy this entire `ir_tool` directory to a location of your choice<br/>
 
 - Linux : I recommend _~/user_name/opt_
 - macOS : In your _Applications_ folder
 - Windows : typically in _C:/Program Files_ or in your user directory
 
-Copy the following files and directories to the executable location :
-
-- sweep_tone.wav _(default 4 seconds sweep tone at 48 Khz and in floating point format you can use for recording)_
-- deconvolution_examples _(optional but neat to test if everything is working)_
-
 ### Install desktop (Linux only)
 
-This assumes the executable is located in *~/user_name/opt/sample_tools* or the bash script won't work<br/>
+This assumes the executable is located in *~/user_name/opt/ir_tool* or the bash script won't work<br/>
 
 From the cloned project directory
 
