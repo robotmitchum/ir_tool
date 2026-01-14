@@ -18,13 +18,13 @@
 
 ## Installation
 
-**For Windows and Linux users, a prebuilt executable is available in the releases<br/>
-You don't need to install Python to use it<br/>**
+**Prebuilt executables are available in the releases<br/>
+Python installation is not required to use them<br/>**
+Though, they may or may not be a bit behind this repository especially on macOS<br/>
 
 This project was developed and tested with `Python 3.12.10`<br/>
-
-_It should be possible to run it and build it with another later Python version<br/>
-I was able to run and build just fine with Python 3.14.2 on Windows_
+However, it should be possible to run it and build it with another later Python version
+_(Building and running seems to work fine with Python 3.14.2 on Windows)_
 
 Additional required packages :
 
@@ -34,7 +34,7 @@ Additional required packages :
 - sounddevice
 - platformdirs
 
-Clone repository, create venv and install the required packages
+### Clone repository, create venv and install the required packages
 
 Open a terminal from a directory of your choice
 
