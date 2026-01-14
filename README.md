@@ -2,15 +2,19 @@
 
 ![IR Tool](UI/ir_tool_64.png)
 
-Impulse Response tool
+**Impulse Response tool**
 
-Batch deconvolve and process (trim / fade end, gain compensate / normalize) impulse responses
-
-Generate test tone (sweep and impulse click) to use for deconvolution and recording
-
-Supports wav, flac and aif formats for input and output
+- Batch deconvolve and process (trim / fade end, gain compensate / normalize) impulse responses
+- Generate test tone (sweep and impulse click) to use for deconvolution and recording
+- Supports wav, flac and aif formats for input and output
 
 ![IR Tool UI](screencaps/ir_tool_ui.png)
+
+### UI features
+
+- File and directory fields support drag and drop<br/>
+- Hold mouse cursor over widgets to display tool tips<br/>
+- Most widgets feature context actions with the right mouse button<br/>
 
 ## Installation
 
@@ -54,7 +58,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### Execute ir_tool_UI.py
+## Execute ir_tool_UI.py
 
 Open a terminal from the cloned project directory
 
@@ -72,7 +76,7 @@ python3 -m ir_tool_UI
 python -m ir_tool_UI
 ```
 
-### Or build a native executable
+## Or build a native executable
 
 A build procedure is provided with this package<br/>
 
@@ -125,7 +129,8 @@ The following assets should also be bundled in `ir_tool` :
 - sweep_tone.wav _(default 4 seconds sweep tone at 48 Khz and in floating point format you can use for recording)_
 - deconvolution_examples _(optional but neat to test if everything is working)_
 
-An archive of the `ir_tool` directory will also be found in `dist` - this is the same file I release on this page in `releases`</br>
+An archive of the `ir_tool` directory will also be found in `dist` - this is the same file I release on this page
+in `releases`</br>
 If you don't need it, it can be safely deleted
 
 Copy this entire `ir_tool` directory to a location of your choice<br/>
@@ -134,7 +139,7 @@ Copy this entire `ir_tool` directory to a location of your choice<br/>
 - macOS : In your _Applications_ folder
 - Windows : typically in _C:/Program Files_ or in your user directory
 
-### Install desktop (Linux only)
+## Install desktop (Linux only)
 
 This assumes the executable is located in *~/user_name/opt/ir_tool* or the bash script won't work<br/>
 
@@ -144,14 +149,6 @@ From the cloned project directory
 chmod +x install_desktop.sh
 ./install_desktop.sh
 ```
-
-## Features
-
-File and directory fields support drag and drop
-
-Hold mouse cursor over widgets to display tool tips
-
-Most widgets feature context actions with the right mouse button
 
 ## License
 
