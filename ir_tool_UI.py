@@ -30,7 +30,7 @@ import numpy as np
 import platformdirs
 import sounddevice as sd
 import soundfile as sf
-from PyQt5 import QtWidgets, QtGui, QtCore, Qt
+from PySide6 import QtWidgets, QtGui, QtCore
 
 from UI import ir_tool as gui
 from common_prefs_utils import Node, get_settings, set_settings, read_settings, write_settings
@@ -135,7 +135,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
         # Files widgets
         self.set_files_tb.clicked.connect(self.browse_files)
-        self.files_lw.setContextMenuPolicy(3)
+        self.files_lw.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.files_lw.customContextMenuRequested.connect(self.files_lw_ctx)
         self.files_lw.doubleClicked.connect(self.play_lw_item)
 
@@ -198,18 +198,18 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.menu_bar.setNativeMenuBar(False)
 
         plt = self.menu_bar.palette()
-        plt.setColor(QtGui.QPalette.Background, QtGui.QColor(39, 39, 39))
+        plt.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(39, 39, 39))
         self.menu_bar.setPalette(plt)
 
         # Settings Menu
         self.settings_menu = QtWidgets.QMenu(self.menu_bar)
         self.settings_menu.setTitle('Settings')
 
-        self.save_settings_a = QtWidgets.QAction(self)
+        self.save_settings_a = QtGui.QAction(self)
         self.save_settings_a.setText('Save settings')
-        self.load_settings_a = QtWidgets.QAction(self)
+        self.load_settings_a = QtGui.QAction(self)
         self.load_settings_a.setText('Load settings')
-        self.restore_defaults_a = QtWidgets.QAction(self)
+        self.restore_defaults_a = QtGui.QAction(self)
         self.restore_defaults_a.setText('Restore defaults')
 
         self.settings_menu.addAction(self.load_settings_a)
@@ -222,9 +222,9 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         # Help Menu
         self.help_menu = QtWidgets.QMenu(self.menu_bar)
         self.help_menu.setTitle('?')
-        self.visit_github_a = QtWidgets.QAction(self)
+        self.visit_github_a = QtGui.QAction(self)
         self.visit_github_a.setText('Visit repository on github')
-        self.about_a = QtWidgets.QAction(self)
+        self.about_a = QtGui.QAction(self)
         self.about_a.setText('About')
 
         self.help_menu.addAction(self.visit_github_a)
@@ -240,7 +240,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         file_dialog.setWindowTitle('Generate sweep tone from 20 Hz to Nyquist frequency')
         file_dialog.w_cb.setHidden(False)
 
-        if file_dialog.exec_():
+        if file_dialog.exec():
             files = file_dialog.selectedFiles()
             if files:
                 fp = Path(files[0])
@@ -295,7 +295,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         file_dialog.setWindowTitle('Generate impulse click')
         file_dialog.w_cb.setHidden(True)
 
-        if file_dialog.exec_():
+        if file_dialog.exec():
             files = file_dialog.selectedFiles()
             if files:
                 fp = Path(files[0])
@@ -478,7 +478,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.refresh_lw_items()
         if not self.last_file:
             items = self.files_lw.selectedItems() or self.get_lw_items()
-            items = [s.data(Qt.Qt.UserRole) for s in items]
+            items = [s.data(QtCore.Qt.UserRole) for s in items]
             if items:
                 self.last_file = items[-1]
 
@@ -507,10 +507,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         menu.deleteLater()
 
     def get_lw_items(self):
-        return [self.files_lw.item(i).data(Qt.Qt.UserRole) for i in range(self.files_lw.count())]
+        return [self.files_lw.item(i).data(QtCore.Qt.UserRole) for i in range(self.files_lw.count())]
 
     def get_sel_lw_items(self):
-        return [item.data(Qt.Qt.UserRole) for item in self.files_lw.selectedItems()]
+        return [item.data(QtCore.Qt.UserRole) for item in self.files_lw.selectedItems()]
 
     def del_lw_items(self):
         for item in self.files_lw.selectedItems():
@@ -525,7 +525,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.files_lw.addItems(names)
 
         for i, file_path in enumerate(files):
-            self.files_lw.item(i).setData(Qt.Qt.UserRole, file_path)
+            self.files_lw.item(i).setData(QtCore.Qt.UserRole, file_path)
 
         if files:
             self.last_file = files[-1]
@@ -533,7 +533,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def refresh_lw_items(self):
         lw_items = [self.files_lw.item(i) for i in range(self.files_lw.count())]
         for item in lw_items:
-            f = item.data(Qt.Qt.UserRole)
+            f = item.data(QtCore.Qt.UserRole)
             if Path(f).is_file():
                 item.setText(shorten_path(f))
             else:
@@ -542,7 +542,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     @staticmethod
     def play_lw_item(*args):
-        audio_file = args[0].data(Qt.Qt.UserRole)
+        audio_file = args[0].data(QtCore.Qt.UserRole)
         if os.path.isfile(audio_file):
             data, sr = sf.read(audio_file)
             sd.play(data, sr)
@@ -561,27 +561,27 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             sd.play(data, sr)
 
     def key_del_lw_items_event(self, event):
-        if event.key() == Qt.Qt.Key_Delete:
+        if event.key() == QtCore.Qt.Key_Delete:
             items = self.files_lw.selectedItems()
             for item in items:
                 self.files_lw.takeItem(self.files_lw.row(item))
 
-        if event.key() == Qt.Qt.Key_Down:
+        if event.key() == QtCore.Qt.Key_Down:
             mx = self.files_lw.count() - 1
             sel_indices = [a.row() + 1 if a.row() < mx else mx for a in self.files_lw.selectedIndexes()]
             self.files_lw.clearSelection()
             for idx in sel_indices:
                 self.files_lw.item(idx).setSelected(True)
-        elif event.key() == Qt.Qt.Key_Up:
+        elif event.key() == QtCore.Qt.Key_Up:
             sel_indices = [a.row() - 1 if a.row() > 0 else 0 for a in self.files_lw.selectedIndexes()]
             self.files_lw.clearSelection()
             for idx in sel_indices:
                 self.files_lw.item(idx).setSelected(True)
 
-        elif event.modifiers() & Qt.Qt.ControlModifier:
-            if event.key() == Qt.Qt.Key_A:
+        elif event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+            if event.key() == QtCore.Qt.Key_A:
                 self.files_lw.selectAll()
-            elif event.key() == Qt.Qt.Key_I:
+            elif event.key() == QtCore.Qt.Key_I:
                 items = self.files_lw.selectedItems()
                 self.files_lw.selectAll()
                 for item in items:
@@ -729,7 +729,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
                     f"Copyright © 2024 Michel 'Mitch' Pecqueur\n\n")
             about_dlg.set_text(text)
             about_dlg.append_url('https://github.com/robotmitchum/ir_tool')
-            about_dlg.exec_()
+            about_dlg.exec()
         except Exception as e:
             print(e)
             pass
@@ -755,13 +755,13 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.init_custom_widgets()
 
     def init_custom_widgets(self):
-        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
 
         self.length_l = QtWidgets.QLabel('Length(s) :', self)
         self.length_l.setSizePolicy(size_policy)
         self.length_dsb = QtWidgets.QDoubleSpinBox(self)
         self.length_dsb.setFrame(False)
-        self.length_dsb.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.length_dsb.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.length_dsb.setMaximum(60)
         self.length_dsb.setValue(4.0)
         self.length_dsb.setDecimals(1)
@@ -772,7 +772,7 @@ class RefToneDialog(QtWidgets.QFileDialog):
         self.sr_l.setSizePolicy(size_policy)
         self.sr_sb = QtWidgets.QSpinBox(self)
         self.sr_sb.setFrame(False)
-        self.sr_sb.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.sr_sb.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.sr_sb.setMaximum(192000)
         self.sr_sb.setValue(48000)
 
@@ -810,7 +810,7 @@ class RefToneDialog(QtWidgets.QFileDialog):
 
 
 class FilePathLabel(QtWidgets.QLabel):
-    pathChanged = QtCore.pyqtSignal(str)
+    pathChanged = QtCore.Signal(str)
 
     def __init__(self, text: str = '', app_dir: Path | str | None = None, file_mode: bool = False, parent=None):
         super().__init__(text, parent)
@@ -931,7 +931,7 @@ class FilePathLabel(QtWidgets.QLabel):
 class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget = None, title: str = 'About', icon_file: Path | str | None = None):
         super().__init__(parent)
-        self.setSizePolicy(Qt.QSizePolicy.Minimum, Qt.QSizePolicy.Minimum)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
         self.setFixedSize(0, 0)
         self.setWindowTitle(title or 'About')
 
@@ -942,9 +942,9 @@ class AboutDialog(QtWidgets.QDialog):
 
         # Message with clickable URL
         self.msg_l = QtWidgets.QLabel(self)
-        self.msg_l.setTextFormat(Qt.Qt.RichText)
-        self.msg_l.setTextInteractionFlags(Qt.Qt.TextBrowserInteraction)
-        self.msg_l.setAlignment(Qt.Qt.AlignLeft | Qt.Qt.AlignVCenter)
+        self.msg_l.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self.msg_l.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.msg_l.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.msg_l.linkActivated.connect(self.handle_link_clicked)
 
         # - Layout -
@@ -963,7 +963,7 @@ class AboutDialog(QtWidgets.QDialog):
             self.icon_pixmap = QtGui.QPixmap(str(icon_file))
         else:
             self.icon_pixmap = QtGui.QPixmap(64, 64)
-            self.icon_pixmap.fill(Qt.Qt.green)
+            self.icon_pixmap.fill(QtCore.Qt.GlobalColor.green)
         self.icon_l.setPixmap(self.icon_pixmap)
 
     def set_text(self, value: str, append: bool = True):
@@ -1016,8 +1016,8 @@ def dict_to_stylesheet(widget: str, properties: dict) -> str:
 def get_text_color(widget: QtWidgets.QWidget) -> QtGui.QColor:
     """Get most relevant text color"""
     plt = widget.palette()
-    for role in [QtGui.QPalette.ButtonText, QtGui.QPalette.WindowText,
-                 QtGui.QPalette.Text, QtGui.QPalette.Foreground]:
+    for role in [QtGui.QPalette.ColorRole.ButtonText, QtGui.QPalette.ColorRole.WindowText,
+                 QtGui.QPalette.ColorRole.Text]:
         color = plt.color(role)
         if color.isValid():
             return color
@@ -1226,7 +1226,7 @@ def add_ctx(widget: QtWidgets.QWidget,
         menu.exec_(pos)
         menu.deleteLater()
 
-    widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+    widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
     if trigger is None:
         widget.customContextMenuRequested.connect(show_context_menu)
     else:
@@ -1276,4 +1276,4 @@ if __name__ == "__main__":
     if getattr(sys, 'frozen', False):
         pyi_splash.close()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

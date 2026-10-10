@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 
 
-def write_json(data, filepath, separators=(',', ':'), sort_keys=True, indent=None):
+def write_json(data: any, filepath: Path | str, separators=(',', ':'), sort_keys: bool = True,
+               indent: int | None = None) -> bool:
     """
     Write given data to disk as a json file
     Create necessary directory structure if non-existent
@@ -37,12 +38,11 @@ def write_json(data, filepath, separators=(',', ':'), sort_keys=True, indent=Non
         return True
 
 
-def read_json(filepath):
+def read_json(filepath: Path | str) -> any:
     """
     Read json file and return retrieved data
-    :param str or Path filepath: File path
+    :param filepath: File path
     :return: Python data structure
-    :rtype: any
     """
     p = Path(filepath)
     if not p.is_file():

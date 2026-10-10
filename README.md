@@ -28,7 +28,7 @@ _(Building and running seems to work fine with Python 3.14.2 on Windows)_
 
 Additional required packages :
 
-- PyQt5
+- PySide6
 - numpy
 - soundfile
 - sounddevice

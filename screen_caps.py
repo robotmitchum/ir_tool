@@ -12,8 +12,8 @@ import sys
 from functools import partial
 from pathlib import Path
 
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtWidgets import *
 
 from dark_fusion_style import apply_dark_theme
 
@@ -76,4 +76,4 @@ if __name__ == '__main__':
     window = ScreenCap()
     window.show()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
