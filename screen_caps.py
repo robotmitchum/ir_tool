@@ -24,7 +24,7 @@ class ScreenCap(QMainWindow):
         self.setWindowTitle('Capture UI')
         self.setGeometry(100, 100, 300, 200)
 
-        self.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+        self.setLocale(QLocale(QLocale.Language.English, QLocale.Country.UnitedStates))
 
         self.current_dir = Path(__file__).parent
         self.tools_path = self.current_dir / 'tools'

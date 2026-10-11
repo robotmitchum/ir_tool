@@ -478,7 +478,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.refresh_lw_items()
         if not self.last_file:
             items = self.files_lw.selectedItems() or self.get_lw_items()
-            items = [s.data(QtCore.Qt.UserRole) for s in items]
+            items = [s.data(QtCore.Qt.ItemDataRole.UserRole) for s in items]
             if items:
                 self.last_file = items[-1]
 
@@ -507,10 +507,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         menu.deleteLater()
 
     def get_lw_items(self):
-        return [self.files_lw.item(i).data(QtCore.Qt.UserRole) for i in range(self.files_lw.count())]
+        return [self.files_lw.item(i).data(QtCore.Qt.ItemDataRole.UserRole) for i in range(self.files_lw.count())]
 
     def get_sel_lw_items(self):
-        return [item.data(QtCore.Qt.UserRole) for item in self.files_lw.selectedItems()]
+        return [item.data(QtCore.Qt.ItemDataRole.UserRole) for item in self.files_lw.selectedItems()]
 
     def del_lw_items(self):
         for item in self.files_lw.selectedItems():
@@ -525,7 +525,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         self.files_lw.addItems(names)
 
         for i, file_path in enumerate(files):
-            self.files_lw.item(i).setData(QtCore.Qt.UserRole, file_path)
+            self.files_lw.item(i).setData(QtCore.Qt.ItemDataRole.UserRole, file_path)
 
         if files:
             self.last_file = files[-1]
@@ -533,7 +533,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
     def refresh_lw_items(self):
         lw_items = [self.files_lw.item(i) for i in range(self.files_lw.count())]
         for item in lw_items:
-            f = item.data(QtCore.Qt.UserRole)
+            f = item.data(QtCore.Qt.ItemDataRole.UserRole)
             if Path(f).is_file():
                 item.setText(shorten_path(f))
             else:
@@ -542,7 +542,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 
     @staticmethod
     def play_lw_item(*args):
-        audio_file = args[0].data(QtCore.Qt.UserRole)
+        audio_file = args[0].data(QtCore.Qt.ItemDataRole.UserRole)
         if os.path.isfile(audio_file):
             data, sr = sf.read(audio_file)
             sd.play(data, sr)
@@ -561,27 +561,27 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
             sd.play(data, sr)
 
     def key_del_lw_items_event(self, event):
-        if event.key() == QtCore.Qt.Key_Delete:
+        if event.key() == QtCore.Qt.Key.Key_Delete:
             items = self.files_lw.selectedItems()
             for item in items:
                 self.files_lw.takeItem(self.files_lw.row(item))
 
-        if event.key() == QtCore.Qt.Key_Down:
+        if event.key() == QtCore.Qt.Key.Key_Down:
             mx = self.files_lw.count() - 1
             sel_indices = [a.row() + 1 if a.row() < mx else mx for a in self.files_lw.selectedIndexes()]
             self.files_lw.clearSelection()
             for idx in sel_indices:
                 self.files_lw.item(idx).setSelected(True)
-        elif event.key() == QtCore.Qt.Key_Up:
+        elif event.key() == QtCore.Qt.Key.Key_Up:
             sel_indices = [a.row() - 1 if a.row() > 0 else 0 for a in self.files_lw.selectedIndexes()]
             self.files_lw.clearSelection()
             for idx in sel_indices:
                 self.files_lw.item(idx).setSelected(True)
 
         elif event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
-            if event.key() == QtCore.Qt.Key_A:
+            if event.key() == QtCore.Qt.Key.Key_A:
                 self.files_lw.selectAll()
-            elif event.key() == QtCore.Qt.Key_I:
+            elif event.key() == QtCore.Qt.Key.Key_I:
                 items = self.files_lw.selectedItems()
                 self.files_lw.selectAll()
                 for item in items:
@@ -746,10 +746,10 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
 class RefToneDialog(QtWidgets.QFileDialog):
     def __init__(self, *args):
         super().__init__(*args)
-        self.setLocale(QtCore.QLocale(QtCore.QLocale.English, QtCore.QLocale.UnitedStates))
-        self.setOptions(QtWidgets.QFileDialog.DontUseNativeDialog)
-        self.setFileMode(QtWidgets.QFileDialog.AnyFile)
-        self.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        self.setLocale(QtCore.QLocale(QtCore.QLocale.Language.English, QtCore.QLocale.Country.UnitedStates))
+        self.setOptions(QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        self.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
+        self.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         self.setNameFilters(['Audio Files (*.wav *.flac *.aif)'])
         self.setWindowTitle('Generate reference tone')
         self.init_custom_widgets()

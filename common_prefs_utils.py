@@ -105,7 +105,7 @@ def write_settings(widget, filepath=None, startdir=None, ext='json'):
         if filepath is None:
             startdir = startdir or Path(os.getcwd()) / 'settings.json'
 
-            options = QFileDialog.Options()
+            options = QFileDialog.Option(0)
             filepath, _ = QFileDialog.getSaveFileName(widget, caption='Save current settings', dir=str(startdir),
                                                       filter=f'{ext} files (*.{ext})', options=options)
         if filepath:
@@ -133,7 +133,7 @@ def read_settings(widget, filepath=None, startdir=None, ext='json'):
         if filepath is None:
             startdir = startdir or os.getcwd()
 
-            options = QFileDialog.Options()
+            options = QFileDialog.Option(0)
             filepath, _ = QFileDialog.getOpenFileName(widget, caption='Load settings', dir=str(startdir),
                                                       filter=f'{ext} files (*.{ext})', options=options)
         if filepath:
