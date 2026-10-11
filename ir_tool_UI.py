@@ -500,7 +500,7 @@ class IrToolUi(gui.Ui_ir_tool_mw, QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu(self)
         names = [menu.addAction(item) for item in ['Remove item(s) from list', 'Clear list']]
         cmds = [self.del_lw_items, self.files_lw.clear]
-        action = menu.exec_(QtGui.QCursor.pos())
+        action = menu.exec(QtGui.QCursor.pos())
         for name, cmd in zip(names, cmds):
             if action == name:
                 cmd()
@@ -1223,7 +1223,7 @@ def add_ctx(widget: QtWidgets.QWidget,
 
         pos = widget.mapToGlobal(widget.contentsRect().bottomLeft())
         menu.setMinimumWidth(widget.width())
-        menu.exec_(pos)
+        menu.exec(pos)
         menu.deleteLater()
 
     widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
